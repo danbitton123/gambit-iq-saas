@@ -5,6 +5,7 @@ import plotly.express as px
 import streamlit as st
 
 from config import COLORS
+from data.copilot import GovernedCopilot, SUGGESTED_QUESTIONS, approved_catalog
 from data.decision_engine import DecisionAlert, DecisionEngine, RULE_CATALOG
 from ui.charts import polish
 from ui.components import chart, data_table, kpis, money, pct
@@ -14,6 +15,120 @@ from ui.theme import page_header
 SEVERITY_ORDER = ["Critical", "High", "Medium"]
 STATUS_ORDER = ["New", "Reviewed", "Resolved"]
 SEVERITY_ICONS = {"Critical": "crisis_alert", "High": "warning", "Medium": "info"}
+
+
+def _analysis_markdown(item: dict) -> str:
+    response = item["response"]
+    sources = "\n".join(f"- {source}" for source in response.sources)
+    evidence = f"```csv\n{response.evidence.to_csv(index=False)}```" if not response.evidence.empty else "No result rows."
+    return f"""# {response.title}
+
+**Question:** {item['question']}
+
+**Scope:** {item['scope']}
+
+## Answer
+
+{response.answer}
+
+## Evidence
+
+{evidence}
+
+## Data used
+
+{sources}
+
+## Confidence and limitations
+
+- Confidence: {response.confidence:.0%}
+- {response.limitations}
+"""
+
+
+def _render_copilot_response(item: dict, index: int) -> None:
+    response = item["response"]
+    with st.chat_message("user"):
+        st.write(item["question"])
+    with st.chat_message("assistant"):
+        if response.refused:
+            st.warning(response.answer, icon=":material/shield:")
+        else:
+            st.markdown(f"### {response.title}")
+            st.write(response.answer)
+            if not response.evidence.empty:
+                with st.expander("View governed evidence", expanded=index == 0):
+                    data_table(response.evidence)
+        st.markdown(
+            f"<div class='copilot-confidence'><span><i class='material-symbols-rounded'>verified</i>"
+            f"{response.confidence:.0%} confidence</span><span><i class='material-symbols-rounded'>filter_alt</i>"
+            f"{item['scope']}</span></div>", unsafe_allow_html=True,
+        )
+        st.caption(f"Limit: {response.limitations}")
+        st.markdown("**Data used**")
+        for source in response.sources:
+            st.caption(f"↳ {source}")
+        action1, action2, action3 = st.columns([1, 1, 2.2])
+        with action1:
+            if st.button("Useful", icon=":material/thumb_up:", key=f"copilot_useful_{item['id']}"):
+                st.session_state[f"copilot_feedback_{item['id']}"] = "Useful"
+        with action2:
+            if st.button("Not useful", icon=":material/thumb_down:", key=f"copilot_not_useful_{item['id']}"):
+                st.session_state[f"copilot_feedback_{item['id']}"] = "Not useful"
+        with action3:
+            feedback = st.session_state.get(f"copilot_feedback_{item['id']}")
+            if feedback:
+                st.caption(f"Feedback recorded: {feedback}")
+
+
+def _render_copilot(ctx, alerts) -> None:
+    st.markdown("""<section class='copilot-hero'><div><small>GOVERNED BUSINESS COPILOT</small>
+      <h2>Ask the business. Verify the evidence.</h2><p>Answers use approved analytical routines only—never free-form SQL.</p></div>
+      <span class='material-symbols-rounded'>forum</span></section>""", unsafe_allow_html=True)
+    st.info("The Copilot applies the global market and period filters, anonymizes player evidence and cites every governed source.", icon=":material/security:")
+    st.session_state.setdefault("copilot_history", [])
+    copilot = GovernedCopilot(ctx, alerts)
+
+    st.markdown("#### Suggested questions")
+    suggestion_cols = st.columns(3)
+    selected_question = None
+    for index, suggestion in enumerate(SUGGESTED_QUESTIONS):
+        with suggestion_cols[index % 3]:
+            if st.button(suggestion, key=f"copilot_suggestion_{index}", width="stretch"):
+                selected_question = suggestion
+    question = st.chat_input("Ask about revenue, games, players, acquisition, payments, risk or sportsbook…", key="copilot_question")
+    question = question or selected_question
+    if question:
+        response = copilot.ask(question)
+        st.session_state.copilot_history.insert(0, {
+            "id": f"{len(st.session_state.copilot_history)+1}_{abs(hash(question))}",
+            "question": question, "scope": ctx.period_label, "response": response,
+        })
+
+    history = st.session_state.copilot_history
+    if not history:
+        st.markdown("<div class='copilot-empty'><span class='material-symbols-rounded'>travel_explore</span><strong>Start with a suggested question</strong><small>The response will include evidence, scope, confidence and limitations.</small></div>", unsafe_allow_html=True)
+    else:
+        top, controls = st.columns([2, 1])
+        with top: st.markdown(f"#### Conversation history · {len(history)} question{'s' if len(history)!=1 else ''}")
+        with controls:
+            if st.button("Clear history", icon=":material/delete_sweep:", width="stretch"):
+                st.session_state.copilot_history = []
+                st.rerun()
+        for index, item in enumerate(history):
+            _render_copilot_response(item, index)
+        export = "\n\n---\n\n".join(_analysis_markdown(item) for item in reversed(history))
+        st.download_button("Download complete analysis", export, "gambit_iq_copilot_analysis.md", "text/markdown", icon=":material/download:", width="stretch")
+
+    with st.expander("Approved analytical catalogue and safety policy"):
+        data_table(approved_catalog())
+        st.markdown("""
+        - User text is never inserted into SQL.
+        - Only fixed, parameterized analytical routines can query the warehouse.
+        - Direct player identifiers and personal data are never returned.
+        - Questions outside the approved casino and sportsbook scope are refused before any query executes.
+        - Outputs are decision support and never execute campaigns, limits or player-protection actions.
+        """)
 
 
 def _status(alert: DecisionAlert) -> str:
@@ -147,7 +262,9 @@ def render(ctx) -> None:
         ("Observed Reviewed Decisions", f"{reviewed:,} / {len(alerts):,}", "Session action register"),
     ], ctx)
 
-    alerts_tab, recommendations_tab, governance_tab, ml_tab = st.tabs(["Intelligent alerts", "Recommendation center", "Rule governance", "ML Intelligence"])
+    copilot_tab, alerts_tab, recommendations_tab, governance_tab, ml_tab = st.tabs(["Ask Copilot", "Intelligent alerts", "Recommendation center", "Rule governance", "ML Intelligence"])
+    with copilot_tab:
+        _render_copilot(ctx, alerts)
     with alerts_tab:
         if not alerts:
             st.success("No governed threshold is breached for the selected period and market.")

@@ -176,6 +176,14 @@ The governed ML pipeline uses strict out-of-time evaluation: older snapshots tra
 
 The **ML Intelligence** workspace in AI Copilot exposes validation/test scorecards, forecast-versus-actual charts, anomaly evidence and action queues. Revenue actually saved is intentionally reported as unavailable until a real campaign assignment and outcome ledger is connected.
 
+## Governed AI Copilot
+
+AI Copilot converts business questions into one of ten approved analytical intents. It never generates or executes free-form SQL: user text selects a fixed parameterized routine, the global period and market filters are applied by `SQLContext`, and only governed result columns reach the answer layer.
+
+Each response includes the business conclusion, supporting rows, source tables, active filter scope, limitations and a confidence level. The interface provides suggested questions, session history, Markdown export and useful/not-useful feedback. Direct player identifiers are replaced with irreversible aliases, sensitive-data requests are refused before querying, and unrelated questions cannot access the warehouse.
+
+The first approved catalogue covers NGR drivers, underperforming games, acquisition allocation, churn value at risk, VIP attention, withdrawal failures, priority actions, casino performance, sportsbook performance and payments. New questions must be implemented as reviewed catalogue entries with fixed SQL and tests.
+
 ## Moving to PostgreSQL
 
 SQLite is intentionally used for the zero-configuration MVP. The UI reads through `data/repository.py`, so the production migration consists of:
