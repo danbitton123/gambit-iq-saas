@@ -152,6 +152,8 @@ The Command Center is organized as an executive decision flow: six governed perf
 
 Player 360 combines portfolio segmentation and individual drill-down: observed value/cash/gaming history, RFM, modelled churn/fraud/RG and future-value signals, responsible activation guardrails, eight overlapping business segments, a lifetime timeline and CSV export for simulated CRM activation. Campaign and bonus histories remain explicitly labelled demo simulations until those source ledgers are connected.
 
+The AI Decision Engine evaluates ten auditable rules for revenue, RTP, acquisition, providers, payments, conversion, sportsbook exposure, revenue concentration, fraud and Responsible Gaming. Triggered alerts feed an operational recommendation register with accountable owner, impact, recovery potential, effort, priority, confidence, status and measured-result tracking.
+
 ## Moving to PostgreSQL
 
 SQLite is intentionally used for the zero-configuration MVP. The UI reads through `data/repository.py`, so the production migration consists of:
