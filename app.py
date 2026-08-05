@@ -61,6 +61,7 @@ def main() -> None:
             "Operations": [
                 st.Page("nav_pages/finance.py", title="Revenue & Finance", icon=":material/account_balance:", url_path="revenue-finance"),
                 st.Page("nav_pages/risk.py", title="Risk & Compliance", icon=":material/gpp_good:", url_path="risk-compliance"),
+                st.Page("nav_pages/data_import.py", title="Data Import Studio", icon=":material/upload_file:", url_path="data-import"),
             ],
         },
         position="sidebar",

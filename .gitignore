@@ -8,5 +8,6 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 data/.*.building.db*
+data/imports/
 *.pyc
 .env

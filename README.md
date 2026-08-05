@@ -184,6 +184,14 @@ Each response includes the business conclusion, supporting rows, source tables, 
 
 The first approved catalogue covers NGR drivers, underperforming games, acquisition allocation, churn value at risk, VIP attention, withdrawal failures, priority actions, casino performance, sportsbook performance and payments. New questions must be implemented as reviewed catalogue entries with fixed SQL and tests.
 
+## Governed CSV import
+
+**Data Import Studio** provides the first operator-data connector for players, casino sessions, sportsbook bets, transactions, bonuses, campaigns and KYC/risk events. It automatically proposes a mapping from client headers to the Gambit IQ contract, then checks required columns, types, missing values, primary-key duplicates, valid ranges, domain values and cross-file player references.
+
+Imports are staged in an isolated candidate warehouse. Activation is blocked while an error remains; after a successful warehouse build the candidate replaces the active database atomically and the previous version is archived. Every attempt records its files, row count, quality score, errors and warnings. Model outputs remain explicitly **Missing data** until imported history is sufficient to train and validate them.
+
+See `docs/CSV_IMPORT_GUIDE.md` for the canonical fields and pilot workflow. Database, S3, API, scheduled, incremental and monitored pipelines are presented as the next connector stages rather than simulated capabilities.
+
 ## Moving to PostgreSQL
 
 SQLite is intentionally used for the zero-configuration MVP. The UI reads through `data/repository.py`, so the production migration consists of:

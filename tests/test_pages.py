@@ -76,6 +76,8 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
         assert f'"{group}"' in source
     for icon in ["dashboard", "psychology", "person_search", "campaign", "casino", "sports_soccer", "trending_up", "account_balance", "gpp_good"]:
         assert f":material/{icon}:" in source
+    assert ':material/upload_file:' in source
+    assert 'title="Data Import Studio"' in source
     assert 'key="global_date_range"' in source
     assert 'key="global_market"' in source
     assert 'position="sidebar"' in source

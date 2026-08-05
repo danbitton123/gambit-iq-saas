@@ -216,4 +216,7 @@ class SQLContext:
 
 @st.cache_resource(show_spinner="Preparing SQL warehouse and ML predictions…")
 def get_repository(db_path: str | None = None) -> SQLRepository:
-    return SQLRepository(Path(db_path) if db_path else DB_PATH)
+    if db_path:
+        return SQLRepository(Path(db_path))
+    from data.importer import active_database
+    return SQLRepository(active_database() or DB_PATH)
