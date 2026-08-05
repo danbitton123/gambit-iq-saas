@@ -10,7 +10,7 @@ from ui.kpi_governance import kpi_help
 
 
 def kpis(items: list[tuple[str, str, str | None]], ctx, columns: int | None = None) -> None:
-    per_row = max(1, min(columns or 4, 4))
+    per_row = max(1, columns or len(items))
     for start in range(0, len(items), per_row):
         row = items[start:start + per_row]
         cols = st.columns(len(row))

@@ -32,7 +32,7 @@ Date de validation : 5 août 2026
 - Validation des quatre niveaux du Command Center, des six alertes dynamiques et des quatre recommandations explicables.
 - Validation du Player 360, de ses huit segments, cinq onglets, garde-fous CRM et export CSV.
 - Validation de la fiche joueur enrichie avec pictogrammes et de la lisibilité complète du thème Light.
-- Validation de l'affichage intégral des titres, valeurs et variations KPI avec quatre cartes maximum par rangée standard.
+- Validation de l'affichage intégral des titres, valeurs et variations KPI sur une rangée unique par section.
 - Reconstruction idempotente des couches raw, staging, dimensions, facts, intermediate et marts.
 - Réconciliation des volumes raw/facts, des clés étrangères et du GGR raw/fact/mart.
 - Entraînement réel de cinq pipelines scikit-learn et persistance Joblib.

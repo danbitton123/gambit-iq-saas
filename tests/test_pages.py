@@ -85,7 +85,7 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     components = COMPONENTS.read_text(encoding="utf-8")
     assert "white-space:normal!important" in theme
     assert "text-overflow:clip!important" in theme
-    assert "min(columns or 4, 4)" in components
+    assert "columns or len(items)" in components
 
 
 def test_command_center_has_complete_executive_decision_layers():
