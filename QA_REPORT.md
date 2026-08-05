@@ -26,6 +26,9 @@ Date de validation : 5 août 2026
 - Validation de la navigation groupée Executive, Customers, Performance et Operations.
 - Validation des neuf routes, des icônes, de l'état actif natif et de la persistance des filtres globaux.
 - Validation du bouton natif de réduction de la barre latérale avec la navigation explicite Streamlit.
+- Validation du logo natif avant la navigation et du sélecteur Dark / Light persistant.
+- Validation des états sans données, filtre invalide, erreur SQL, modèle indisponible, données anciennes et connexion interrompue.
+- Validation de la frontière de sécurité empêchant l'affichage d'une exception Python côté utilisateur.
 - Reconstruction idempotente des couches raw, staging, dimensions, facts, intermediate et marts.
 - Réconciliation des volumes raw/facts, des clés étrangères et du GGR raw/fact/mart.
 - Entraînement réel de cinq pipelines scikit-learn et persistance Joblib.

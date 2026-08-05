@@ -14,6 +14,14 @@ from data.generator import generate_database
 from data.warehouse import SCHEMA_VERSION, build_warehouse
 
 
+class DataConnectionError(RuntimeError):
+    """The warehouse could not be opened or reached."""
+
+
+class SQLQueryError(RuntimeError):
+    """A governed SQL query could not be completed."""
+
+
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
     return conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type IN ('table','view') AND name = ?", (table,)
@@ -49,11 +57,18 @@ def ensure_database() -> None:
 
 
 @st.cache_data(show_spinner=False, ttl=300)
-def _query_cached(sql: str, params_json: str, db_mtime: float) -> pd.DataFrame:
+def _query_cached(sql: str, params_json: str, db_path: str, db_mtime: float) -> pd.DataFrame:
     del db_mtime
     params = json.loads(params_json)
-    with sqlite3.connect(DB_PATH) as conn:
-        return pd.read_sql_query(sql, conn, params=params)
+    try:
+        with sqlite3.connect(db_path) as conn:
+            return pd.read_sql_query(sql, conn, params=params)
+    except sqlite3.OperationalError as exc:
+        if "unable to open" in str(exc).lower() or "locked" in str(exc).lower():
+            raise DataConnectionError("Warehouse connection failed") from exc
+        raise SQLQueryError("SQL operation failed") from exc
+    except (sqlite3.Error, pd.errors.DatabaseError) as exc:
+        raise SQLQueryError("SQL query failed") from exc
 
 
 class SQLRepository:
@@ -63,7 +78,11 @@ class SQLRepository:
 
     def query(self, sql: str, params: dict | None = None) -> pd.DataFrame:
         serialized = json.dumps(params or {}, sort_keys=True, default=str)
-        return _query_cached(sql, serialized, self.db_path.stat().st_mtime)
+        try:
+            mtime = self.db_path.stat().st_mtime
+        except OSError as exc:
+            raise DataConnectionError("Warehouse file is unavailable") from exc
+        return _query_cached(sql, serialized, str(self.db_path), mtime)
 
     def scalar(self, sql: str, params: dict | None = None, default=0):
         df = self.query(sql, params)
@@ -84,6 +103,23 @@ class SQLRepository:
 
     def countries(self) -> list[str]:
         return self.query("SELECT DISTINCT country FROM players ORDER BY country")["country"].tolist()
+
+    def latest_event(self) -> pd.Timestamp | None:
+        value = self.scalar("""
+            SELECT MAX(event_timestamp) FROM (
+              SELECT session_start AS event_timestamp FROM sessions
+              UNION ALL SELECT transaction_date FROM transactions
+              UNION ALL SELECT bet_date FROM sports_bets
+            )
+        """, default=None)
+        return pd.Timestamp(value) if value else None
+
+    def model_available(self) -> bool:
+        count = self.scalar("""
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type IN ('table','view') AND name IN ('model_scores','model_metrics')
+        """, default=0)
+        return int(count or 0) == 2
 
 
 @dataclass(frozen=True)

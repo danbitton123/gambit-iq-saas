@@ -144,6 +144,10 @@ gambit_iq_streamlit/
 
 The sidebar uses Streamlit's explicit `st.navigation` router with four governed groups: Executive, Customers, Performance and Operations. Global period and market filters are declared in the entrypoint so their state persists while users move between pages.
 
+The native Gambit IQ logo sits above navigation. A persistent **Dark / Light** design control adapts the application and Plotly charts without changing KPI semantics.
+
+The UI explicitly handles loading, empty scopes, invalid filters, SQL failures, unavailable models, stale data and interrupted connections. A top-level safety boundary logs technical diagnostics with a reference code while showing users a concise recovery message—Python tracebacks are never rendered in the product UI.
+
 ## Moving to PostgreSQL
 
 SQLite is intentionally used for the zero-configuration MVP. The UI reads through `data/repository.py`, so the production migration consists of:

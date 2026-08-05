@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
 
 from config import COLORS
 
@@ -10,19 +11,23 @@ PALETTE = [COLORS["cyan"], COLORS["green"], COLORS["gold"], "#8b76ff", COLORS["r
 
 
 def polish(fig: go.Figure, height: int = 360, legend: bool = True) -> go.Figure:
+    light = st.session_state.get("design_mode") == "Light"
+    muted = "#526875" if light else COLORS["muted"]
+    text = "#18313c" if light else COLORS["text"]
+    grid = "rgba(24,49,60,.12)" if light else COLORS["grid"]
     fig.update_layout(
         height=height,
         margin=dict(l=18, r=18, t=48, b=20),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color=COLORS["muted"], family="Inter"),
-        title_font=dict(color=COLORS["text"], size=13, family="Manrope"),
+        font=dict(color=muted, family="Inter"),
+        title_font=dict(color=text, size=13, family="Manrope"),
         legend=dict(orientation="h", y=1.08, x=0, font=dict(size=10), title_text=""),
         showlegend=legend,
-        hoverlabel=dict(bgcolor="#0a2730", font_color="#f4f7fb"),
+        hoverlabel=dict(bgcolor="#ffffff" if light else "#0a2730", font_color=text),
     )
-    fig.update_xaxes(showgrid=False, zeroline=False, linecolor="rgba(141,163,180,.15)")
-    fig.update_yaxes(gridcolor=COLORS["grid"], zeroline=False)
+    fig.update_xaxes(showgrid=False, zeroline=False, linecolor=grid, color=muted)
+    fig.update_yaxes(gridcolor=grid, zeroline=False, color=muted)
     fig.update_layout(hovermode="closest", autosize=True)
     return fig
 

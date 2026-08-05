@@ -21,9 +21,6 @@ h1,h2,h3 { font-family:'Manrope',sans-serif !important; letter-spacing:-.02em; }
 [data-testid="stMetricValue"] { font-family:'Manrope',sans-serif; font-weight:700; }
 [data-testid="stMetricDelta"] { font-weight:600; }
 .block-container { max-width:1700px; padding-top:1.1rem; padding-bottom:3rem; }
-.gambit-brand { border:1px solid rgba(217,167,46,.4); border-radius:18px; padding:18px 14px; text-align:center; margin:4px 0 20px; background:linear-gradient(145deg,rgba(217,167,46,.10),rgba(4,16,28,.2)); }
-.brand-coin { width:58px;height:58px;border-radius:50%;margin:auto;border:3px double #d9a72e;display:grid;place-items:center;color:#d9a72e;font:700 28px Manrope;box-shadow:0 0 24px rgba(217,167,46,.16); }
-.brand-name { color:#e8c15f;font:700 20px Manrope;letter-spacing:.12em;margin-top:9px; }
 .eyebrow { color:#d9a72e;font-size:.74rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:5px; }
 .page-title { font:700 2rem Manrope;margin:0;color:#f6f8fb; }
 .page-subtitle { color:#8da3b4;margin:3px 0 18px;font-size:.96rem; }
@@ -39,6 +36,10 @@ h1,h2,h3 { font-family:'Manrope',sans-serif !important; letter-spacing:-.02em; }
 .status-good {color:#27d17f}.status-warn {color:#f5b84b}.status-bad {color:#ff5b57}
 div[data-testid="stDataFrame"] { border:1px solid rgba(141,163,180,.16);border-radius:12px;overflow:hidden; }
 .stPlotlyChart { background:linear-gradient(145deg,rgba(7,28,36,.74),rgba(5,18,28,.88));border:1px solid rgba(141,163,180,.14);border-radius:14px;padding:6px; }
+.app-state { display:flex;gap:13px;align-items:flex-start;border:1px solid rgba(141,163,180,.25);border-left:4px solid #26c6e5;background:rgba(7,28,36,.84);padding:15px 17px;border-radius:12px;margin:12px 0 18px; }
+.app-state-icon { width:25px;height:25px;flex:0 0 25px;border-radius:50%;display:grid;place-items:center;background:rgba(38,198,229,.14);font-weight:800; }
+.app-state strong { font:600 .94rem Manrope;color:#f4f7fb; }.app-state p { margin:3px 0;color:#b6c5cf;font-size:.86rem; }.app-state small { color:#8da3b4; }
+.app-state-error { border-left-color:#ff5b57; }.app-state-warning { border-left-color:#f5b84b; }.app-state-success { border-left-color:#27d17f; }
 .element-container { max-width:100%; }
 button[kind="primary"] {background:linear-gradient(90deg,#0b8056,#16a56f)!important;border:0!important;}
 hr {border-color:rgba(141,163,180,.12)!important}
@@ -63,15 +64,25 @@ hr {border-color:rgba(141,163,180,.12)!important}
 """
 
 
-def apply_theme() -> None:
-    st.markdown(CSS, unsafe_allow_html=True)
+LIGHT_CSS = """
+<style>
+.stApp { background:radial-gradient(circle at 80% -10%,#e8f5f4 0,#f5f7fa 38%,#eef2f6 100%);color:#13232d; }
+[data-testid="stSidebar"] { background:linear-gradient(180deg,#ffffff 0%,#edf3f6 100%);border-right:1px solid #d6b761; }
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,[data-testid="stSidebar"] label { color:#263b47; }
+[data-testid="stSidebarNavLink"][aria-current="page"] { color:#10242d;background:linear-gradient(90deg,rgba(217,167,46,.25),rgba(39,209,127,.12)); }
+h1,h2,h3,.page-title,.panel-title { color:#112731!important; }.page-subtitle { color:#5c7080; }
+[data-testid="stMetric"] { background:linear-gradient(145deg,#ffffff,#edf7f4);border-color:rgba(11,128,86,.22);box-shadow:0 8px 24px rgba(25,48,60,.08); }
+[data-testid="stMetricLabel"] { color:#5c7080; }[data-testid="stMetricValue"] { color:#112731; }
+.filter-summary { background:#eef8fa; }.filter-summary strong { color:#18313c; }.filter-summary span,.filter-summary small { color:#5c7080; }
+.insight-card,.app-state { background:linear-gradient(145deg,#ffffff,#f2f6f7);color:#18313c; }.insight-card strong,.app-state strong { color:#18313c; }.insight-card small,.app-state p,.app-state small { color:#5c7080; }
+.stPlotlyChart { background:linear-gradient(145deg,#ffffff,#f6f9fa);border-color:#dbe4e9; }
+[data-baseweb="select"] > div,[data-testid="stDateInput"] input { background:#ffffff!important;color:#18313c!important; }
+</style>
+"""
 
 
-def brand() -> None:
-    st.sidebar.markdown(
-        "<div class='gambit-brand'><div class='brand-coin'>G</div><div class='brand-name'>GAMBIT IQ</div></div>",
-        unsafe_allow_html=True,
-    )
+def apply_theme(mode: str = "Dark") -> None:
+    st.markdown(CSS + (LIGHT_CSS if mode == "Light" else ""), unsafe_allow_html=True)
 
 
 def page_header(title: str, subtitle: str, eyebrow: str = "Intelligence Platform") -> None:
