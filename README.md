@@ -150,6 +150,8 @@ The UI explicitly handles loading, empty scopes, invalid filters, SQL failures, 
 
 The Command Center is organized as an executive decision flow: six governed performance KPIs with prior-period and objective progress, six data-driven action signals, a market-aware 7/30-day outlook, and explainable recommendations covering signal, cause, impact, action and confidence.
 
+Player 360 combines portfolio segmentation and individual drill-down: observed value/cash/gaming history, RFM, modelled churn/fraud/RG and future-value signals, responsible activation guardrails, eight overlapping business segments, a lifetime timeline and CSV export for simulated CRM activation. Campaign and bonus histories remain explicitly labelled demo simulations until those source ledgers are connected.
+
 ## Moving to PostgreSQL
 
 SQLite is intentionally used for the zero-configuration MVP. The UI reads through `data/repository.py`, so the production migration consists of:

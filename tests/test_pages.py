@@ -92,3 +92,22 @@ def test_command_center_has_complete_executive_decision_layers():
     assert html.count("recommendation-card") == 4
     for question in ("WHAT IS HAPPENING?", "WHY?", "ESTIMATED IMPACT", "RECOMMENDED ACTION"):
         assert html.count(question) == 4
+
+
+def test_player_360_segments_record_tabs_and_crm_export():
+    app = AppTest.from_file(HARNESS, default_timeout=30).run()
+    _widget(app.radio, "Test page").set_value("Player Intelligence").run()
+    assert not app.exception
+    assert [tab.label for tab in app.tabs] == ["Value & cash", "Gaming behavior", "Risk & RG", "Timeline", "CRM history"]
+    segment = _widget(app.selectbox, "Business segment")
+    assert segment.options == [
+        "All players", "VIP active", "VIP at risk", "New FTD", "Growing players",
+        "Became inactive", "Potential bonus abuse", "RG risk", "High future value",
+    ]
+    assert _widget(app.toggle, "CRM-safe export only").value is True
+    assert len(app.get("download_button")) == 1
+    initial_export_label = app.get("download_button")[0].label
+    assert initial_export_label.startswith("Export ")
+    segment.set_value("VIP at risk").run()
+    assert not app.exception
+    assert app.get("download_button")[0].label != initial_export_label

@@ -17,6 +17,7 @@ KPI_REGISTRY: dict[str, KPIInfo] = {
     "Observed Sportsbook GGR": KPIInfo("Sportsbook revenue retained before direct deductions.", "Settled stakes − settled payouts", "v_sports_bets_enriched", "Observed"),
     "Estimated NGR": KPIInfo("Estimated gaming revenue after the deductions available in the MVP.", "GGR − processing fees − 6.5% bonus provision − 9.5% tax provision", "Gaming facts + v_transactions_enriched + demo provisions", "Estimated"),
     "Observed Active Players": KPIInfo("Unique players with at least one settled gaming event.", "COUNT(DISTINCT player_id) across casino and sportsbook", "int_player_activity_daily / gaming facts", "Observed"),
+    "Observed Lifetime GGR": KPIInfo("Observed casino and sportsbook GGR accumulated across the full available history for players in the selected market.", "Lifetime casino GGR + lifetime sportsbook GGR", "sessions + sports_bets", "Observed"),
     "Observed Total Bets": KPIInfo("Settled casino wager value.", "SUM(total_bet_amount)", "mart_game_performance_daily", "Observed"),
     "Observed GGR Margin": KPIInfo("Share of settled casino wagers retained as GGR.", "SUM(GGR) / SUM(bets)", "mart_game_performance_daily", "Observed"),
     "Observed Actual RTP": KPIInfo("Share of settled casino wagers returned to players.", "SUM(payouts) / SUM(bets)", "mart_game_performance_daily", "Observed"),
