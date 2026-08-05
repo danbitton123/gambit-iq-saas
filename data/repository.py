@@ -97,7 +97,19 @@ class SQLContext:
     def params(self) -> dict:
         return {
             "start": self.start.strftime("%Y-%m-%d %H:%M:%S"),
-            "end": (self.end + pd.Timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"),
+            "end": (self.end + pd.Timedelta(1, unit="D")).strftime("%Y-%m-%d %H:%M:%S"),
+            "country": self.country,
+        }
+
+    @property
+    def previous_params(self) -> dict:
+        """Parameters for the immediately preceding, equally sized period."""
+        days = (self.end.normalize() - self.start.normalize()).days + 1
+        previous_end = self.start.normalize()
+        previous_start = previous_end - pd.Timedelta(days, unit="D")
+        return {
+            "start": previous_start.strftime("%Y-%m-%d %H:%M:%S"),
+            "end": previous_end.strftime("%Y-%m-%d %H:%M:%S"),
             "country": self.country,
         }
 
@@ -108,6 +120,32 @@ class SQLContext:
     def scalar(self, sql: str, extra: dict | None = None, default=0):
         params = self.params | (extra or {})
         return self.repo.scalar(sql, params, default)
+
+    def previous_query(self, sql: str, extra: dict | None = None) -> pd.DataFrame:
+        params = self.previous_params | (extra or {})
+        return self.repo.query(sql, params)
+
+    def previous_scalar(self, sql: str, extra: dict | None = None, default=0):
+        params = self.previous_params | (extra or {})
+        return self.repo.scalar(sql, params, default)
+
+    def event_count(self) -> int:
+        """Count activity represented by the global date and market filters."""
+        return int(self.scalar("""
+            SELECT COUNT(*) FROM (
+              SELECT s.player_id FROM v_sessions_enriched s
+              WHERE s.session_start>=:start AND s.session_start<:end
+                AND (:country='All markets' OR s.country=:country)
+              UNION ALL
+              SELECT t.player_id FROM v_transactions_enriched t
+              WHERE t.transaction_date>=:start AND t.transaction_date<:end
+                AND (:country='All markets' OR t.country=:country)
+              UNION ALL
+              SELECT b.player_id FROM v_sports_bets_enriched b
+              WHERE b.bet_date>=:start AND b.bet_date<:end
+                AND (:country='All markets' OR b.country=:country)
+            )
+        """, default=0) or 0)
 
 
 @st.cache_resource(show_spinner="Preparing SQL warehouse and ML predictions…")

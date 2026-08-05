@@ -7,13 +7,13 @@ import streamlit as st
 
 from config import COLORS
 from ui.charts import area_forecast, polish
-from ui.components import insight, kpis, money
+from ui.components import chart, insight, kpis, money, period_delta
 from ui.theme import page_header
 
 
 def render(ctx) -> None:
     page_header("COMMAND CENTER", "Revenue, Risk & Player Intelligence", "Executive Overview")
-    metrics = ctx.query("""
+    metric_sql = """
         WITH revenue AS (
           SELECT COALESCE(SUM(total_ggr),0) total_ggr FROM mart_executive_daily
           WHERE metric_date>=DATE(:start) AND metric_date<DATE(:end)
@@ -26,16 +26,20 @@ def render(ctx) -> None:
         ), scores AS (
           SELECT SUM(CASE WHEN churn_probability>=.70 THEN 1 ELSE 0 END) churn,
                  COALESCE(SUM(CASE WHEN fraud_risk>=.55 OR rg_risk>=.55 THEN MAX(lifetime_ggr,0) ELSE 0 END),0) protected
-          FROM v_player_scores WHERE (:country='All markets' OR country=:country)
+          FROM v_player_scores v WHERE (:country='All markets' OR country=:country)
+            AND EXISTS (SELECT 1 FROM v_sessions_enriched s WHERE s.player_id=v.player_id
+              AND s.session_start>=:start AND s.session_start<:end)
         )
         SELECT revenue.total_ggr, activity.active,
                scores.churn, scores.protected FROM revenue,activity,scores
-    """).iloc[0]
+    """
+    metrics = ctx.query(metric_sql).iloc[0]
+    previous = ctx.previous_query(metric_sql).iloc[0]
     kpis([
-        ("Net Gaming Revenue", money(metrics.total_ggr), "12.4% vs prior period"),
-        ("Active Player Touchpoints", f"{int(metrics.active):,}", "8.7% vs prior period"),
+        ("Total GGR", money(metrics.total_ggr), period_delta(metrics.total_ggr, previous.total_ggr)),
+        ("Active Players", f"{int(metrics.active):,}", period_delta(metrics.active, previous.active)),
         ("Players at Churn Risk", f"{int(metrics.churn):,}", "ML watchlist"),
-        ("Protected Revenue", money(metrics.protected), "Risk identified"),
+        ("Estimated Risk Exposure", money(metrics.protected), "Active high-risk players"),
     ])
     daily = ctx.query("""
         SELECT metric_date date,SUM(total_ggr) value FROM mart_executive_daily
@@ -48,17 +52,19 @@ def render(ctx) -> None:
     forecast=ctx.query("SELECT forecast_date date,predicted_revenue value,lower_bound lower,upper_bound upper FROM revenue_forecast ORDER BY forecast_date");forecast["date"]=pd.to_datetime(forecast.date)
     left, right = st.columns([3.3, 1])
     with left:
-        st.plotly_chart(area_forecast(history, forecast, title="NET GAMING REVENUE FORECAST"), width="stretch")
+        chart(area_forecast(history, forecast, title="GGR HISTORY & 30-DAY FORECAST"), history,
+              explanation="Observed casino and sportsbook GGR for the selected filters; the dotted series is the model forecast for all markets.")
     with right:
-        st.markdown("<p class='panel-title'>AI Priority Feed</p>", unsafe_allow_html=True)
-        insight("VIP opportunity", "High-value inactive segment detected. Review before activation.", "+$182K potential")
-        insight("Bonus abuse review", "Linked patterns require a fraud-team review.", "$31K exposure", True)
-        insight("Player protection", "Elevated behavior indicators require intervention.", "Priority queue", True)
+        st.markdown("<p class='panel-title'>Rule-based Priority Feed</p>", unsafe_allow_html=True)
+        insight("Churn review", "Active players above the 70% churn threshold.", f"{int(metrics.churn):,} players")
+        insight("Risk review", "Estimated lifetime GGR attached to active fraud or RG flags.", money(metrics.protected), True)
+        st.caption("Priorities are calculated from the filtered SQL snapshot; they are decision support, not automated actions.")
 
     sample = ctx.query("""
         SELECT player_id, churn_probability, predicted_ltv_90d, session_count,
           CASE WHEN churn_probability<.4 THEN 'Stable' WHEN churn_probability<.7 THEN 'Watch' ELSE 'High risk' END risk_band
-        FROM v_player_scores WHERE (:country='All markets' OR country=:country)
+        FROM v_player_scores v WHERE (:country='All markets' OR country=:country)
+          AND EXISTS (SELECT 1 FROM v_sessions_enriched s WHERE s.player_id=v.player_id AND s.session_start>=:start AND s.session_start<:end)
         ORDER BY player_id LIMIT 1200
     """)
     game = ctx.query("""
@@ -79,10 +85,10 @@ def render(ctx) -> None:
     c1,c2,c3=st.columns([1.2,1.2,1])
     with c1:
         fig=px.scatter(sample,x="churn_probability",y="predicted_ltv_90d",color="risk_band",size="session_count",title="PLAYER VALUE VS CHURN RISK",color_discrete_map={"Stable":COLORS["green"],"Watch":COLORS["gold"],"High risk":COLORS["red"]})
-        st.plotly_chart(polish(fig,340),width="stretch")
+        chart(polish(fig,340), sample, explanation="Bubble size represents observed session count; colors consistently progress from green to amber to red as risk increases.")
     with c2:
         fig=px.bar(game,x="GGR",y="game_name",orientation="h",color="GGR",title="GAME PERFORMANCE RANKING",color_continuous_scale=[COLORS["emerald"],COLORS["green"]]);fig.update_layout(coloraxis_showscale=False)
-        st.plotly_chart(polish(fig,340,False),width="stretch")
+        chart(polish(fig,340,False), game, explanation="Observed GGR by game for the selected period and market.")
     with c3:
         fig=go.Figure(go.Heatmap(z=risk[["Low","Moderate","High","Critical"]].to_numpy(),x=["Low","Moderate","High","Critical"],y=risk.Dimension,colorscale=[[0,COLORS["green"]],[.5,COLORS["gold"]],[1,COLORS["red"]]],text=risk[["Low","Moderate","High","Critical"]].to_numpy(),texttemplate="%{text}"));fig.update_layout(title="RISK MONITORING HEATMAP")
-        st.plotly_chart(polish(fig,340,False),width="stretch")
+        chart(polish(fig,340,False), risk, explanation="Risk bands use the same green–amber–red severity scale used throughout Gambit IQ.")

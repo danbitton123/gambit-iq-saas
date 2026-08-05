@@ -54,10 +54,9 @@ st.sidebar.divider()
 st.sidebar.markdown("<div class='live-pill'><span class='live-dot'></span> All systems operational</div>", unsafe_allow_html=True)
 st.sidebar.caption("Demo environment · Synthetic data only")
 
-player_count = context.scalar(
-    "SELECT COUNT(*) FROM players WHERE (:country='All markets' OR country=:country)"
-)
-if not player_count:
-    st.warning("No data is available for the selected filters.")
+st.sidebar.caption(f"Showing {start_date:%d %b %Y} – {end_date:%d %b %Y}")
+
+if not context.event_count():
+    st.warning("No activity is available for this period and market. Choose a wider date range or another market.")
 else:
     PAGES[page](context)

@@ -1,6 +1,6 @@
 # GAMBIT IQ — Rapport QA
 
-Date de validation : 4 août 2026
+Date de validation : 5 août 2026
 
 ## Résultat
 
@@ -13,10 +13,16 @@ Date de validation : 4 août 2026
 - Vérification de l'intégrité SQLite avec `PRAGMA integrity_check`.
 - Régénération complète de la base depuis zéro.
 - Test automatisé des neuf routes avec Streamlit AppTest après la migration SQL.
-- Vérification des requêtes SQL paramétrées par période et pays.
+- Test automatisé des neuf pages avec les filtres « All markets » et « Canada ».
+- Vérification des requêtes SQL paramétrées par période et pays, y compris la période précédente de même durée.
+- Vérification des états sans données et suppression des accès `.iloc` dangereux avant contrôle.
+- Vérification des formats monétaires, pourcentages, dates et scores dans les tableaux principaux.
+- Vérification de la cohérence couleur : vert = favorable, or = vigilance, rouge = risque.
+- Vérification responsive : colonnes empilées et tableaux défilables sous 768 px.
+- Remplacement des valeurs décoratives non justifiées par des données filtrées, des estimations explicitement nommées ou des explications.
 - Reconstruction idempotente des couches raw, staging, dimensions, facts, intermediate et marts.
 - Réconciliation des volumes raw/facts, des clés étrangères et du GGR raw/fact/mart.
-- Entraînement réel de quatre pipelines scikit-learn et persistance Joblib.
+- Entraînement réel de cinq pipelines scikit-learn et persistance Joblib.
 - Vérification des bornes `[0,1]` des probabilités et de la table `model_metrics`.
 - Recherche d'exceptions, tracebacks et avertissements d'API dépréciées.
 - Vérification de l'archive ZIP.

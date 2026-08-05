@@ -6,7 +6,7 @@ import streamlit as st
 
 from config import COLORS
 from ui.charts import area_forecast, polish
-from ui.components import insight, kpis, money, pct
+from ui.components import chart, data_table, insight, kpis, money, pct
 from ui.theme import page_header
 
 
@@ -20,14 +20,16 @@ QUESTIONS = {
 
 def render(ctx) -> None:
     page_header("GAMBIT AI COPILOT", "Forecasts, explanations and business decisions", "Decision Intelligence")
-    m=ctx.query("""SELECT (SELECT COALESCE(SUM(casino_ggr),0) FROM v_sessions_enriched WHERE session_start>=:start AND session_start<:end AND (:country='All markets' OR country=:country))+(SELECT COALESCE(SUM(sportsbook_ggr),0) FROM v_sports_bets_enriched WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country)) total_ggr,(SELECT SUM(CASE WHEN churn_probability>=.7 THEN predicted_ltv_90d ELSE 0 END) FROM v_player_scores WHERE (:country='All markets' OR country=:country)) risk_revenue,(SELECT SUM(CASE WHEN predicted_ltv_90d>=900 AND rg_risk<.4 THEN predicted_ltv_90d*.08 ELSE 0 END) FROM v_player_scores WHERE (:country='All markets' OR country=:country)) opportunities,(SELECT AVG(model_confidence) FROM v_player_scores WHERE (:country='All markets' OR country=:country)) accuracy""").iloc[0]
+    m=ctx.query("""SELECT (SELECT COALESCE(SUM(casino_ggr),0) FROM v_sessions_enriched WHERE session_start>=:start AND session_start<:end AND (:country='All markets' OR country=:country))+(SELECT COALESCE(SUM(sportsbook_ggr),0) FROM v_sports_bets_enriched WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country)) total_ggr,(SELECT COALESCE(SUM(CASE WHEN churn_probability>=.7 THEN predicted_ltv_90d ELSE 0 END),0) FROM v_player_scores v WHERE (:country='All markets' OR country=:country) AND EXISTS (SELECT 1 FROM v_sessions_enriched s WHERE s.player_id=v.player_id AND s.session_start>=:start AND s.session_start<:end)) risk_revenue,(SELECT COALESCE(SUM(CASE WHEN predicted_ltv_90d>=900 AND rg_risk<.4 THEN predicted_ltv_90d*.08 ELSE 0 END),0) FROM v_player_scores v WHERE (:country='All markets' OR country=:country) AND EXISTS (SELECT 1 FROM v_sessions_enriched s WHERE s.player_id=v.player_id AND s.session_start>=:start AND s.session_start<:end)) opportunities,(SELECT AVG(model_confidence) FROM v_player_scores v WHERE (:country='All markets' OR country=:country) AND EXISTS (SELECT 1 FROM v_sessions_enriched s WHERE s.player_id=v.player_id AND s.session_start>=:start AND s.session_start<:end)) accuracy""").iloc[0]
     total_ggr,risk_revenue,opportunities,accuracy=m.total_ggr,m.risk_revenue,m.opportunities,m.accuracy
+    selected_days = max((ctx.end.normalize() - ctx.start.normalize()).days + 1, 1)
+    projected_30d = total_ggr / selected_days * 30
     kpis([
-        ("Forecasted NGR 30D", money(total_ggr * 1.07), "7.2% forecast growth"),
-        ("Revenue at Risk", money(risk_revenue), "Churn-adjusted"),
-        ("Identified Opportunities", money(opportunities), "15.7% vs baseline"),
+        ("Run-rate GGR 30D", money(projected_30d), "Selected-period daily rate × 30"),
+        ("Predicted Value at Risk", money(risk_revenue), "LTV of active players ≥70% churn"),
+        ("Modelled Opportunities", money(opportunities), "8% of eligible predicted LTV"),
         ("Model Confidence", pct(accuracy), "Monitored daily"),
-        ("Actions Awaiting Approval", "8", "Human-in-the-loop"),
+        ("Decision Mode", "Human review", "No automated execution"),
     ])
     left, center, right = st.columns([1, 2.35, 1.1])
     with left:
@@ -53,19 +55,22 @@ def render(ctx) -> None:
         st.info(answer, icon="💡")
         daily=ctx.query("""SELECT DATE(session_start) date,SUM(casino_ggr) value FROM v_sessions_enriched WHERE session_start>=:start AND session_start<:end AND (:country='All markets' OR country=:country) GROUP BY DATE(session_start) ORDER BY date DESC LIMIT 45""").sort_values("date");daily["date"]=pd.to_datetime(daily.date)
         future=ctx.query("SELECT forecast_date date,predicted_revenue value,lower_bound lower,upper_bound upper FROM revenue_forecast ORDER BY forecast_date");future["date"]=pd.to_datetime(future.date)
-        st.plotly_chart(area_forecast(daily, future, title="EXPLAINABLE 30-DAY FORECAST"), width="stretch")
+        if ctx.country != "All markets":
+            share = daily.value.sum() / max(ctx.query("""SELECT COALESCE(SUM(casino_ggr),0) value FROM v_sessions_enriched WHERE session_start>=:start AND session_start<:end""").iat[0,0], 1)
+            for col in ["value","lower","upper"]: future[col] *= share
+        chart(area_forecast(daily, future, title="EXPLAINABLE 30-DAY FORECAST"),daily,explanation="Historical casino GGR follows the filters. Market forecasts are allocated from the global model using the selected market's observed share and are estimates.")
     with right:
         st.markdown("#### Recommended actions")
-        insight("Review Roulette RTP", "Validate the variance and table mix before intervention.", "$118K impact")
-        insight("VIP service review", "Human outreach for eligible inactive VIPs only.", "$162K potential")
-        insight("Increase table capacity", "Demand forecast exceeds current evening capacity.", "$76K potential")
+        insight("Review churn watchlist", "Prioritize eligible active players; exclude elevated RG risk.", money(risk_revenue))
+        insight("Review value opportunities", "Human approval and control-group measurement required.", money(opportunities))
+        insight("Validate forecast", "Compare the next refresh with realized GGR before acting.", money(projected_30d))
         if st.button("Approve selected action", type="primary", width="stretch"):
             st.success("Action added to the approval log.")
     c1, c2 = st.columns([1.1, 1.5])
     with c1:
         models=ctx.query("""SELECT model_name Model,CASE WHEN metric_name IN ('roc_auc','r2') THEN metric_value ELSE NULL END Accuracy,ABS(metric_value-.9)/5 Drift,CASE WHEN metric_value>.7 THEN 'Healthy' ELSE 'Monitoring' END Status FROM model_metrics WHERE metric_name IN ('roc_auc','r2') ORDER BY model_name""")
         st.markdown("#### Model health")
-        st.dataframe(models, width="stretch", hide_index=True, column_config={"Accuracy": st.column_config.ProgressColumn(min_value=0, max_value=1, format="%.1%%"), "Drift": st.column_config.ProgressColumn(min_value=0, max_value=.25, format="%.1%%")})
+        data_table(models, column_config={"Accuracy": st.column_config.ProgressColumn(min_value=0, max_value=1, format="%.1%%"), "Drift": st.column_config.ProgressColumn(min_value=0, max_value=.25, format="%.1%%")})
     with c2:
         st.markdown("#### Scenario simulator")
         a, b, c = st.columns(3)
@@ -75,5 +80,5 @@ def render(ctx) -> None:
         projected = total_ggr * (1 + bonus * .0015 + spend * .0028 + retention * .006)
         waterfall = pd.DataFrame({"Driver": ["Current", "Bonus", "Acquisition", "Retention", "Projected"], "Value": [total_ggr, total_ggr * bonus * .0015, total_ggr * spend * .0028, total_ggr * retention * .006, projected]})
         fig = px.bar(waterfall, x="Driver", y="Value", color="Driver", title=f"PROJECTED NGR · {money(projected)}", color_discrete_sequence=[COLORS["cyan"], COLORS["gold"], "#8b76ff", COLORS["green"], COLORS["green"]])
-        st.plotly_chart(polish(fig, 300, False), width="stretch")
+        chart(polish(fig, 300, False),waterfall,explanation="Interactive scenario arithmetic is illustrative and does not represent an ML prediction or approved budget plan.")
     st.caption("AI outputs are decision support. Business owners must review recommendations, player-protection rules and local regulatory requirements before action.")

@@ -31,6 +31,7 @@ h1,h2,h3 { font-family:'Manrope',sans-serif !important; letter-spacing:-.02em; }
 .status-good {color:#27d17f}.status-warn {color:#f5b84b}.status-bad {color:#ff5b57}
 div[data-testid="stDataFrame"] { border:1px solid rgba(141,163,180,.16);border-radius:12px;overflow:hidden; }
 .stPlotlyChart { background:linear-gradient(145deg,rgba(7,28,36,.74),rgba(5,18,28,.88));border:1px solid rgba(141,163,180,.14);border-radius:14px;padding:6px; }
+.element-container { max-width:100%; }
 button[kind="primary"] {background:linear-gradient(90deg,#0b8056,#16a56f)!important;border:0!important;}
 hr {border-color:rgba(141,163,180,.12)!important}
 [data-testid="stSidebar"] div[role="radiogroup"] label { padding:.48rem .6rem;border-radius:9px;margin:2px 0; }
@@ -43,6 +44,12 @@ hr {border-color:rgba(141,163,180,.12)!important}
   [data-testid="stMetric"] { min-height:96px; padding:12px; }
   [data-testid="stMetricValue"] { font-size:1.45rem; }
   .stPlotlyChart { padding:2px; border-radius:10px; }
+  [data-testid="stHorizontalBlock"] { flex-wrap:wrap; gap:.65rem; }
+  [data-testid="column"] { min-width:100% !important; flex:1 1 100% !important; }
+  [data-testid="stDataFrame"] { overflow-x:auto; }
+  .gambit-brand { padding:12px 10px; margin-bottom:12px; }
+  .brand-coin { width:44px;height:44px;font-size:22px; }
+  .brand-name { font-size:16px; }
 }
 </style>
 """
@@ -67,4 +74,4 @@ def page_header(title: str, subtitle: str, eyebrow: str = "Intelligence Platform
             unsafe_allow_html=True,
         )
     with right:
-        st.markdown("<div style='height:20px'></div><div class='live-pill'><span class='live-dot'></span> LIVE · Updated 09:00</div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:20px'></div><div class='live-pill'><span class='live-dot'></span> FILTERED VIEW</div>", unsafe_allow_html=True)

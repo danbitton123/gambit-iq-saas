@@ -17,12 +17,13 @@ def polish(fig: go.Figure, height: int = 360, legend: bool = True) -> go.Figure:
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=COLORS["muted"], family="Inter"),
         title_font=dict(color=COLORS["text"], size=13, family="Manrope"),
-        legend=dict(orientation="h", y=1.08, x=0, font=dict(size=10)),
+        legend=dict(orientation="h", y=1.08, x=0, font=dict(size=10), title_text=""),
         showlegend=legend,
         hoverlabel=dict(bgcolor="#0a2730", font_color="#f4f7fb"),
     )
     fig.update_xaxes(showgrid=False, zeroline=False, linecolor="rgba(141,163,180,.15)")
     fig.update_yaxes(gridcolor=COLORS["grid"], zeroline=False)
+    fig.update_layout(hovermode="closest", autosize=True)
     return fig
 
 
@@ -45,4 +46,3 @@ def area_forecast(history, forecast, date_col="date", value_col="value", title="
     fig.add_trace(go.Scatter(x=forecast[date_col], y=forecast[value_col], name="Forecast", line=dict(color=COLORS["cyan"], width=2.5, dash="dot")))
     fig.update_layout(title=title)
     return polish(fig, 390)
-
