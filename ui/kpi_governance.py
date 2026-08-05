@@ -23,6 +23,7 @@ KPI_REGISTRY: dict[str, KPIInfo] = {
     "Observed Active Games": KPIInfo("Games with at least one settled session.", "COUNT(DISTINCT game_id)", "mart_game_performance_daily", "Observed"),
     "Observed Handle": KPIInfo("Total settled sportsbook stake value.", "SUM(stake)", "v_sports_bets_enriched", "Observed"),
     "Observed Hold": KPIInfo("Share of settled sportsbook handle retained as GGR.", "SUM(sportsbook_ggr) / SUM(stake)", "v_sports_bets_enriched", "Observed"),
+    "Observed Blended Hold": KPIInfo("Share of settled casino and sportsbook wagers retained as GGR.", "Total observed GGR / total settled wagers", "mart_executive_daily", "Observed"),
     "Observed Realized Downside": KPIInfo("Absolute losses on settled bets with negative operator GGR; not open exposure.", "SUM(ABS(sportsbook_ggr)) WHERE sportsbook_ggr < 0", "v_sports_bets_enriched", "Observed"),
     "Observed Live Bets": KPIInfo("Settled bets placed in-play.", "SUM(is_live)", "v_sports_bets_enriched", "Observed"),
     "Observed FTD": KPIInfo("Players whose first-ever approved deposit falls in the reporting period.", "COUNT(DISTINCT player_id WHERE first_deposit_date in period)", "transactions", "Observed"),

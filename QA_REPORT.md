@@ -29,6 +29,7 @@ Date de validation : 5 août 2026
 - Validation du logo natif avant la navigation et du sélecteur Dark / Light persistant.
 - Validation des états sans données, filtre invalide, erreur SQL, modèle indisponible, données anciennes et connexion interrompue.
 - Validation de la frontière de sécurité empêchant l'affichage d'une exception Python côté utilisateur.
+- Validation des quatre niveaux du Command Center, des six alertes dynamiques et des quatre recommandations explicables.
 - Reconstruction idempotente des couches raw, staging, dimensions, facts, intermediate et marts.
 - Réconciliation des volumes raw/facts, des clés étrangères et du GGR raw/fact/mart.
 - Entraînement réel de cinq pipelines scikit-learn et persistance Joblib.

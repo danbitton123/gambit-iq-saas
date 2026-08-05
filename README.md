@@ -148,6 +148,8 @@ The native Gambit IQ logo sits above navigation. A persistent **Dark / Light** d
 
 The UI explicitly handles loading, empty scopes, invalid filters, SQL failures, unavailable models, stale data and interrupted connections. A top-level safety boundary logs technical diagnostics with a reference code while showing users a concise recovery message—Python tracebacks are never rendered in the product UI.
 
+The Command Center is organized as an executive decision flow: six governed performance KPIs with prior-period and objective progress, six data-driven action signals, a market-aware 7/30-day outlook, and explainable recommendations covering signal, cause, impact, action and confidence.
+
 ## Moving to PostgreSQL
 
 SQLite is intentionally used for the zero-configuration MVP. The UI reads through `data/repository.py`, so the production migration consists of:

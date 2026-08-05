@@ -75,3 +75,20 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     assert 'key="global_market"' in source
     assert 'position="sidebar"' in source
     assert "showSidebarNavigation = true" in CONFIG.read_text(encoding="utf-8")
+
+
+def test_command_center_has_complete_executive_decision_layers():
+    app = AppTest.from_file(HARNESS, default_timeout=30).run()
+    assert not app.exception
+    assert [metric.label for metric in app.metric] == [
+        "Observed Total GGR", "Estimated NGR", "Observed Active Players",
+        "Observed Deposits", "Observed FTD", "Observed Blended Hold",
+    ]
+    assert len(app.get("plotly_chart")) == 2
+    html = "\n".join(str(item.value) for item in app.markdown)
+    for heading in ("Performance at a glance", "Action required", "Forward outlook", "Recommended decisions"):
+        assert heading in html
+    assert html.count("command-alert ") == 6
+    assert html.count("recommendation-card") == 4
+    for question in ("WHAT IS HAPPENING?", "WHY?", "ESTIMATED IMPACT", "RECOMMENDED ACTION"):
+        assert html.count(question) == 4
