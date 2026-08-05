@@ -17,10 +17,12 @@ h1,h2,h3 { font-family:'Manrope',sans-serif !important; letter-spacing:-.02em; }
 [data-testid="stSidebarNav"] span { font-weight:600; }
 [data-testid="stSidebarNavLink"][aria-current="page"] { background:linear-gradient(90deg,rgba(217,167,46,.20),rgba(39,209,127,.10)); border-left:3px solid #d9a72e; color:#f4f7fb; }
 [data-testid="stSidebarCollapseButton"] button, [data-testid="stExpandSidebarButton"] button { border:1px solid rgba(217,167,46,.35); background:#071c24; color:#e8c15f; border-radius:9px; }
-[data-testid="stMetric"] { background:linear-gradient(145deg,rgba(9,48,48,.88),rgba(5,26,35,.96)); border:1px solid rgba(39,209,127,.28); border-radius:14px; padding:16px 18px; min-height:118px; box-shadow:0 12px 30px rgba(0,0,0,.16); }
-[data-testid="stMetricLabel"] { color:#9eb0bc; font-weight:600; }
-[data-testid="stMetricValue"] { font-family:'Manrope',sans-serif; font-weight:700; }
-[data-testid="stMetricDelta"] { font-weight:600; }
+[data-testid="stMetric"] { background:linear-gradient(145deg,rgba(9,48,48,.88),rgba(5,26,35,.96)); border:1px solid rgba(39,209,127,.28); border-radius:14px; padding:17px 18px; min-height:154px; box-shadow:0 12px 30px rgba(0,0,0,.16);overflow:visible; }
+[data-testid="stMetricLabel"] { color:#9eb0bc;font-weight:600;min-height:2.65rem;height:auto!important;width:100%;align-items:flex-start;overflow:visible!important; }
+[data-testid="stMetricLabel"] > div { width:100%;overflow:visible!important; }[data-testid="stMetricLabel"] p { white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere;line-height:1.25!important;font-size:.82rem!important; }
+[data-testid="stMetricValue"] { font-family:'Manrope',sans-serif;font-weight:700;font-size:clamp(1.55rem,2.15vw,2.55rem)!important;line-height:1.08!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere; }
+[data-testid="stMetricDelta"] { font-weight:600;max-width:100%;height:auto!important;white-space:normal!important;overflow:visible!important; }
+[data-testid="stMetricDelta"] > div,[data-testid="stMetricDelta"] p { white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.22!important;font-size:.76rem!important; }
 .block-container { max-width:1700px; padding-top:1.1rem; padding-bottom:3rem; }
 .eyebrow { color:#d9a72e;font-size:.74rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:5px; }
 .page-title { font:700 2rem Manrope;margin:0;color:#f6f8fb; }
@@ -67,8 +69,8 @@ hr {border-color:rgba(141,163,180,.12)!important}
   .page-title { font-size:1.42rem; }
   .page-subtitle { font-size:.82rem; margin-bottom:12px; }
   .live-pill { font-size:.68rem; padding:5px 8px; }
-  [data-testid="stMetric"] { min-height:96px; padding:12px; }
-  [data-testid="stMetricValue"] { font-size:1.45rem; }
+  [data-testid="stMetric"] { min-height:132px; padding:13px; }
+  [data-testid="stMetricValue"] { font-size:1.55rem!important; }
   .stPlotlyChart { padding:2px; border-radius:10px; }
   [data-testid="stHorizontalBlock"] { flex-wrap:wrap; gap:.65rem; }
   [data-testid="column"] { min-width:100% !important; flex:1 1 100% !important; }

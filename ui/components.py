@@ -10,16 +10,19 @@ from ui.kpi_governance import kpi_help
 
 
 def kpis(items: list[tuple[str, str, str | None]], ctx, columns: int | None = None) -> None:
-    cols = st.columns(columns or len(items))
-    for col, (label, value, delta) in zip(cols, items):
-        is_comparison = bool(delta and re.match(r"^[+\-−]?\d", str(delta)))
-        col.metric(
-            label,
-            value,
-            delta,
-            delta_color="normal" if is_comparison else "off",
-            help=kpi_help(label, ctx.period_label, ctx.last_updated_label()),
-        )
+    per_row = max(1, min(columns or 4, 4))
+    for start in range(0, len(items), per_row):
+        row = items[start:start + per_row]
+        cols = st.columns(len(row))
+        for col, (label, value, delta) in zip(cols, row):
+            is_comparison = bool(delta and re.match(r"^[+\-−]?\d", str(delta)))
+            col.metric(
+                label,
+                value,
+                delta,
+                delta_color="normal" if is_comparison else "off",
+                help=kpi_help(label, ctx.period_label, ctx.last_updated_label()),
+            )
 
 
 def insight(title: str, body: str, impact: str = "", risk: bool = False) -> None:

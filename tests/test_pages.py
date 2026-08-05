@@ -7,6 +7,8 @@ from streamlit.testing.v1 import AppTest
 APP = Path(__file__).resolve().parents[1] / "app.py"
 HARNESS = Path(__file__).resolve().parent / "app_harness.py"
 CONFIG = Path(__file__).resolve().parents[1] / ".streamlit" / "config.toml"
+THEME = Path(__file__).resolve().parents[1] / "ui" / "theme.py"
+COMPONENTS = Path(__file__).resolve().parents[1] / "ui" / "components.py"
 
 PAGES = {
     "Command Center": "nav_pages/command_center.py",
@@ -78,6 +80,12 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     assert 'key="global_market"' in source
     assert 'position="sidebar"' in source
     assert "showSidebarNavigation = true" in CONFIG.read_text(encoding="utf-8")
+
+    theme = THEME.read_text(encoding="utf-8")
+    components = COMPONENTS.read_text(encoding="utf-8")
+    assert "white-space:normal!important" in theme
+    assert "text-overflow:clip!important" in theme
+    assert "min(columns or 4, 4)" in components
 
 
 def test_command_center_has_complete_executive_decision_layers():
