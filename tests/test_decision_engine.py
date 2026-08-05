@@ -31,6 +31,19 @@ def test_rule_catalog_covers_every_governed_detection_and_alert_contract():
         assert alert.team and alert.effort and alert.priority and alert.detected_at
         assert alert.financial_impact >= 0 and alert.revenue_potential >= 0
         assert 0 <= alert.confidence <= 1
+        assert alert.market and alert.workflow_id
+
+
+def test_all_markets_is_the_union_of_country_alerts():
+    ctx = _context()
+    all_alerts = DecisionEngine(ctx).evaluate()
+    country_alerts = {
+        country: DecisionEngine(SQLContext(ctx.repo, ctx.start, ctx.end, country)).evaluate()
+        for country in ctx.repo.countries()
+    }
+    assert len(all_alerts) == sum(len(alerts) for alerts in country_alerts.values())
+    assert len(all_alerts) >= max(map(len, country_alerts.values()))
+    assert len({alert.workflow_id for alert in all_alerts}) == len(all_alerts)
 
 
 def test_decision_engine_page_exposes_operational_workflow():
@@ -45,5 +58,7 @@ def test_decision_engine_page_exposes_operational_workflow():
         "Estimated Recovery Potential", "Observed Reviewed Decisions",
     ]
     assert {widget.label for widget in app.multiselect} == {"Severity", "Status", "Responsible team"}
-    assert next(widget for widget in app.segmented_control if widget.label == "Alert status").value == "New"
-    assert next(widget for widget in app.text_input if widget.label == "Result after action")
+    status_widgets = [widget for widget in app.segmented_control if widget.label == "Alert status"]
+    result_widgets = [widget for widget in app.text_input if widget.label == "Result after action"]
+    assert status_widgets and len(status_widgets) == len(result_widgets)
+    assert all(widget.value == "New" for widget in status_widgets)

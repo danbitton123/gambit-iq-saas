@@ -132,11 +132,11 @@ def _render_copilot(ctx, alerts) -> None:
 
 
 def _status(alert: DecisionAlert) -> str:
-    return st.session_state.get(f"decision_status_{alert.rule_id}", "New")
+    return st.session_state.get(f"decision_status_{alert.workflow_id}", "New")
 
 
 def _result(alert: DecisionAlert) -> str:
-    value = st.session_state.get(f"decision_result_{alert.rule_id}", "").strip()
+    value = st.session_state.get(f"decision_result_{alert.workflow_id}", "").strip()
     if value:
         return value
     if _status(alert) == "Resolved":
@@ -151,7 +151,7 @@ def _alert_frame(alerts: list[DecisionAlert]) -> pd.DataFrame:
         "Alert": alert.title, "Severity": alert.severity, "KPI": alert.kpi,
         "Current": alert.current_value, "Usual": alert.usual_value,
         "Financial impact": alert.financial_impact, "Team": alert.team,
-        "Priority": alert.priority, "Status": _status(alert), "Rule": alert.rule_id,
+        "Priority": alert.priority, "Market": alert.market, "Status": _status(alert), "Rule": alert.rule_id,
     } for alert in alerts])
 
 
@@ -161,7 +161,7 @@ def _alert_card(alert: DecisionAlert) -> None:
     st.markdown(
         f"<article class='decision-alert decision-{severity}'><div class='decision-alert-head'>"
         f"<span class='decision-alert-icon material-symbols-rounded'>{SEVERITY_ICONS[alert.severity]}</span>"
-        f"<div><small>{alert.severity} · {alert.priority}</small><strong>{alert.title}</strong></div>"
+        f"<div><small>{alert.severity} · {alert.priority} · {alert.market}</small><strong>{alert.title}</strong></div>"
         f"<b>{_status(alert)}</b></div><div class='decision-alert-kpis'>"
         f"<div><span>KPI</span><strong>{alert.kpi}</strong></div><div><span>CURRENT</span><strong>{alert.current_value}</strong></div>"
         f"<div><span>USUAL / LIMIT</span><strong>{alert.usual_value}</strong></div><div><span>FINANCIAL IMPACT</span><strong>{impact}</strong></div>"
@@ -247,15 +247,16 @@ def render(ctx) -> None:
         alerts = DecisionEngine(ctx).evaluate()
 
     for alert in alerts:
-        st.session_state.setdefault(f"decision_status_{alert.rule_id}", "New")
-        st.session_state.setdefault(f"decision_result_{alert.rule_id}", "")
+        st.session_state.setdefault(f"decision_status_{alert.workflow_id}", "New")
+        st.session_state.setdefault(f"decision_result_{alert.workflow_id}", "")
 
-    critical = sum(alert.severity == "Critical" for alert in alerts)
-    financial_impact = sum(alert.financial_impact for alert in alerts)
-    potential = sum(alert.revenue_potential for alert in alerts)
+    active_alerts = [alert for alert in alerts if _status(alert) != "Resolved"]
+    critical = sum(alert.severity == "Critical" for alert in active_alerts)
+    financial_impact = sum(alert.financial_impact for alert in active_alerts)
+    potential = sum(alert.revenue_potential for alert in active_alerts)
     reviewed = sum(_status(alert) in ["Reviewed", "Resolved"] for alert in alerts)
     kpis([
-        ("Observed Active Alerts", f"{len(alerts):,}", f"{len(RULE_CATALOG):,} governed rules monitored"),
+        ("Observed Active Alerts", f"{len(active_alerts):,}", f"{len(alerts)-len(active_alerts):,} resolved · {len(RULE_CATALOG):,} rules per market"),
         ("Observed Critical Alerts", f"{critical:,}", "Immediate executive review"),
         ("Estimated Alert Impact", money(financial_impact), "Non-additive decision-support estimate"),
         ("Estimated Recovery Potential", money(potential), "Severity-adjusted opportunity"),
@@ -281,15 +282,17 @@ def render(ctx) -> None:
             if not filtered:
                 st.info("No alert matches the selected queue filters.")
             else:
-                selected_title = st.selectbox("Open an alert", [f"{a.severity} · {a.title} · {a.team}" for a in filtered], key="decision_selected")
-                selected = filtered[[f"{a.severity} · {a.title} · {a.team}" for a in filtered].index(selected_title)]
-                _alert_card(selected)
-                action_col, result_col = st.columns([1, 2])
-                with action_col:
-                    st.segmented_control("Alert status", STATUS_ORDER, key=f"decision_status_{selected.rule_id}", width="stretch")
-                with result_col:
-                    st.text_input("Result after action", key=f"decision_result_{selected.rule_id}", placeholder="Enter a measured result, owner note or follow-up…")
-                st.caption("Status and result are stored in the current demo session. Connect an action ledger for durable multi-user workflow.")
+                st.markdown("#### Alert action desk")
+                st.caption("Update every alert independently. KPI counters refresh immediately; the same country alert keeps its status in country and all-market views.")
+                for index, alert in enumerate(filtered):
+                    label = f"{alert.severity} · {alert.market} · {alert.title} · {_status(alert)}"
+                    with st.expander(label, expanded=index == 0):
+                        _alert_card(alert)
+                        action_col, result_col = st.columns([1, 2])
+                        with action_col:
+                            st.segmented_control("Alert status", STATUS_ORDER, key=f"decision_status_{alert.workflow_id}", width="stretch")
+                        with result_col:
+                            st.text_input("Result after action", key=f"decision_result_{alert.workflow_id}", placeholder="Enter a measured result, owner note or follow-up…")
                 queue = _alert_frame(filtered)
                 st.markdown("#### Active alert queue")
                 data_table(queue.drop(columns=["Rule"]), column_config={
@@ -307,6 +310,7 @@ def render(ctx) -> None:
                 "Potential revenue": alert.revenue_potential,
                 "Estimated effort": alert.effort,
                 "Priority": alert.priority,
+                "Market": alert.market,
                 "Confidence": alert.confidence,
                 "Date": alert.detected_at,
                 "Status": _status(alert),

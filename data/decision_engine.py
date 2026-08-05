@@ -38,6 +38,13 @@ class DecisionAlert:
     priority: str
     confidence: float
     detected_at: str
+    market: str
+    period_start: str
+
+    @property
+    def workflow_id(self) -> str:
+        """Stable workflow identity shared by country and all-market views."""
+        return f"{self.rule_id}:{self.market}:{self.period_start}:{self.detected_at}"
 
     @property
     def revenue_potential(self) -> float:
@@ -65,6 +72,16 @@ class DecisionEngine:
         self.detected_at = f"{ctx.end:%d %b %Y}"
 
     def evaluate(self) -> list[DecisionAlert]:
+        if self.ctx.country == "All markets":
+            from data.repository import SQLContext
+            alerts = []
+            for country in self.ctx.repo.countries():
+                country_ctx = SQLContext(self.ctx.repo, self.ctx.start, self.ctx.end, country)
+                alerts.extend(DecisionEngine(country_ctx)._evaluate_scope())
+            return self._sorted(alerts)
+        return self._evaluate_scope()
+
+    def _evaluate_scope(self) -> list[DecisionAlert]:
         alerts: list[DecisionAlert] = []
         alerts.extend(self._revenue_and_payments())
         alerts.extend(self._casino())
@@ -72,15 +89,20 @@ class DecisionEngine:
         alerts.extend(self._sportsbook())
         alerts.extend(self._concentration())
         alerts.extend(self._player_risk())
+        return self._sorted(alerts)
+
+    @staticmethod
+    def _sorted(alerts: list[DecisionAlert]) -> list[DecisionAlert]:
         order = {"Critical": 0, "High": 1, "Medium": 2}
-        return sorted(alerts, key=lambda alert: (order[alert.severity], -alert.financial_impact, alert.rule_id))
+        return sorted(alerts, key=lambda alert: (order[alert.severity], -alert.financial_impact, alert.market, alert.rule_id))
 
     def _alert(self, rule_id: str, severity: str, current: str, usual: str, impact: float,
                impact_note: str, cause: str, recommendation: str, effort: str, confidence: float) -> DecisionAlert:
         title, kpi, team, _ = RULE_CATALOG[rule_id]
         priority = "P0" if severity == "Critical" else "P1" if severity == "High" else "P2"
         return DecisionAlert(rule_id, title, severity, kpi, current, usual, impact, impact_note, cause,
-                             recommendation, team, effort, priority, confidence, self.detected_at)
+                             recommendation, team, effort, priority, confidence, self.detected_at,
+                             self.ctx.country, f"{self.ctx.start:%d %b %Y}")
 
     def _revenue_and_payments(self) -> list[DecisionAlert]:
         sql = """SELECT COALESCE(SUM(total_ggr),0) ggr,COALESCE(SUM(withdrawals),0) withdrawals,
