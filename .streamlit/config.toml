@@ -15,4 +15,4 @@ address = "0.0.0.0"
 gatherUsageStats = false
 
 [client]
-showSidebarNavigation = false
+showSidebarNavigation = true

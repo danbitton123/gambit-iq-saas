@@ -130,6 +130,10 @@ gambit_iq_streamlit/
 │   ├── finance.py
 │   ├── risk.py
 │   └── ai_copilot.py
+├── nav_pages/
+│   ├── command_center.py
+│   ├── ai_copilot.py
+│   └── ... page-route wrappers
 ├── ui/
 │   ├── charts.py
 │   ├── components.py
@@ -137,6 +141,8 @@ gambit_iq_streamlit/
 └── tests/
     └── test_data.py
 ```
+
+The sidebar uses Streamlit's explicit `st.navigation` router with four governed groups: Executive, Customers, Performance and Operations. Global period and market filters are declared in the entrypoint so their state persists while users move between pages.
 
 ## Moving to PostgreSQL
 

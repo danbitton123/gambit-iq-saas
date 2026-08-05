@@ -23,6 +23,9 @@ Date de validation : 5 août 2026
 - Validation de la gouvernance KPI version 1.1 : statuts Observed/Estimated/Predicted et infobulles complètes.
 - Validation SQL des cohortes matures FTD Conversion D30 et Observed Retention D30.
 - Réconciliation du signe RTP `Actual − Theoretical` entre les faits et le data mart.
+- Validation de la navigation groupée Executive, Customers, Performance et Operations.
+- Validation des neuf routes, des icônes, de l'état actif natif et de la persistance des filtres globaux.
+- Validation du bouton natif de réduction de la barre latérale avec la navigation explicite Streamlit.
 - Reconstruction idempotente des couches raw, staging, dimensions, facts, intermediate et marts.
 - Réconciliation des volumes raw/facts, des clés étrangères et du GGR raw/fact/mart.
 - Entraînement réel de cinq pipelines scikit-learn et persistance Joblib.

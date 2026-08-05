@@ -5,18 +5,20 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 APP = Path(__file__).resolve().parents[1] / "app.py"
+HARNESS = Path(__file__).resolve().parent / "app_harness.py"
+CONFIG = Path(__file__).resolve().parents[1] / ".streamlit" / "config.toml"
 
-PAGES = [
-    "Command Center",
-    "Player Intelligence",
-    "Casino Games",
-    "Sportsbook & Trading",
-    "Acquisition",
-    "CRM Automation",
-    "Revenue & Finance",
-    "Risk & Compliance",
-    "AI Copilot",
-]
+PAGES = {
+    "Command Center": "nav_pages/command_center.py",
+    "AI Copilot": "nav_pages/ai_copilot.py",
+    "Player Intelligence": "nav_pages/player_intelligence.py",
+    "CRM Automation": "nav_pages/crm_automation.py",
+    "Casino": "nav_pages/casino.py",
+    "Sportsbook": "nav_pages/sportsbook.py",
+    "Acquisition": "nav_pages/acquisition.py",
+    "Revenue & Finance": "nav_pages/finance.py",
+    "Risk & Compliance": "nav_pages/risk.py",
+}
 
 
 def _widget(elements, label):
@@ -32,13 +34,11 @@ def _assert_governed_metrics(app):
 
 
 def test_all_pages_render_for_global_and_market_filters():
-    app = AppTest.from_file(APP, default_timeout=30).run()
-    assert not app.exception
-
+    app = AppTest.from_file(HARNESS, default_timeout=30).run()
     governed_labels = set()
 
     for page in PAGES:
-        _widget(app.radio, "Navigation").set_value(page).run()
+        _widget(app.radio, "Test page").set_value(page).run()
         assert not app.exception, f"{page}: {[error.message for error in app.exception]}"
         _assert_governed_metrics(app)
         governed_labels.update(metric.label for metric in app.metric)
@@ -51,9 +51,27 @@ def test_all_pages_render_for_global_and_market_filters():
         "Observed Actual RTP",
     } <= governed_labels
 
-    app = AppTest.from_file(APP, default_timeout=30).run()
+    app = AppTest.from_file(HARNESS, default_timeout=30).run()
     _widget(app.selectbox, "Market").set_value("Canada").run()
     for page in PAGES:
-        _widget(app.radio, "Navigation").set_value(page).run()
+        _widget(app.radio, "Test page").set_value(page).run()
         assert not app.exception, f"Canada / {page}: {[error.message for error in app.exception]}"
         _assert_governed_metrics(app)
+        assert _widget(app.selectbox, "Market").value == "Canada"
+
+
+def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
+    app = AppTest.from_file(APP, default_timeout=30).run()
+    assert not app.exception
+    _widget(app.selectbox, "Market").set_value("Canada").run()
+    assert _widget(app.selectbox, "Market").value == "Canada"
+
+    source = APP.read_text(encoding="utf-8")
+    for group in ["Executive", "Customers", "Performance", "Operations"]:
+        assert f'"{group}"' in source
+    for icon in ["dashboard", "psychology", "person_search", "campaign", "casino", "sports_soccer", "trending_up", "account_balance", "gpp_good"]:
+        assert f":material/{icon}:" in source
+    assert 'key="global_date_range"' in source
+    assert 'key="global_market"' in source
+    assert 'position="sidebar"' in source
+    assert "showSidebarNavigation = true" in CONFIG.read_text(encoding="utf-8")
