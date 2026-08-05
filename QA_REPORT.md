@@ -33,6 +33,7 @@ Date de validation : 5 août 2026
 - Validation du Player 360, de ses huit segments, cinq onglets, garde-fous CRM et export CSV.
 - Validation de la fiche joueur enrichie avec pictogrammes et de la lisibilité complète du thème Light.
 - Validation de l'affichage intégral des titres, valeurs et variations KPI sur une rangée unique par section.
+- Validation responsive : KPI sur une colonne en petit mobile, deux en mobile large/tablette et une rangée sur ordinateur.
 - Reconstruction idempotente des couches raw, staging, dimensions, facts, intermediate et marts.
 - Réconciliation des volumes raw/facts, des clés étrangères et du GGR raw/fact/mart.
 - Entraînement réel de cinq pipelines scikit-learn et persistance Joblib.

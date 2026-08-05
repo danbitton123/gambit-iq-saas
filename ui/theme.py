@@ -64,6 +64,10 @@ button[kind="primary"] {background:linear-gradient(90deg,#0b8056,#16a56f)!import
 hr {border-color:rgba(141,163,180,.12)!important}
 [data-testid="stSidebar"] div[role="radiogroup"] label { padding:.48rem .6rem;border-radius:9px;margin:2px 0; }
 [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) { background:linear-gradient(90deg,rgba(217,167,46,.18),rgba(39,209,127,.08));border-left:2px solid #d9a72e; }
+@media (min-width: 601px) and (max-width: 900px) {
+  [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) { flex-wrap:wrap!important;gap:.7rem!important; }
+  [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="column"] { min-width:calc(50% - .4rem)!important;flex:1 1 calc(50% - .4rem)!important;width:calc(50% - .4rem)!important; }
+}
 @media (max-width: 768px) {
   .block-container { padding: .75rem .7rem 2rem; }
   .page-title { font-size:1.42rem; }
@@ -74,12 +78,24 @@ hr {border-color:rgba(141,163,180,.12)!important}
   .stPlotlyChart { padding:2px; border-radius:10px; }
   [data-testid="stHorizontalBlock"] { flex-wrap:wrap; gap:.65rem; }
   [data-testid="column"] { min-width:100% !important; flex:1 1 100% !important; }
+  [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="column"] { min-width:calc(50% - .4rem)!important;flex:1 1 calc(50% - .4rem)!important;width:calc(50% - .4rem)!important; }
   [data-testid="stDataFrame"] { overflow-x:auto; }
+  [data-testid="stTabs"] [data-baseweb="tab-list"] { overflow-x:auto;scrollbar-width:thin;justify-content:flex-start; }
+  [data-testid="stTabs"] [role="tab"] { flex:0 0 auto;white-space:nowrap;padding-left:.75rem;padding-right:.75rem; }
+  [data-testid="stDownloadButton"] button { width:100%; }
+  .stPlotlyChart > div { min-width:0!important;width:100%!important; }
   .recommendation-grid { grid-template-columns:1fr; }.recommendation-card,.forecast-card,.command-alert { min-height:auto; }
   .player-identity { grid-template-columns:auto 1fr;padding:17px; }.identity-status { grid-column:1/-1;align-items:flex-start; }.player-avatar { width:55px;height:55px;font-size:30px; }.player-identity h3 { font-size:1.4rem; }.player-fact,.segment-tile { min-height:auto; }
   .gambit-brand { padding:12px 10px; margin-bottom:12px; }
   .brand-coin { width:44px;height:44px;font-size:22px; }
   .brand-name { font-size:16px; }
+}
+@media (max-width: 600px) {
+  [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="column"] { min-width:100%!important;flex:1 1 100%!important;width:100%!important; }
+  [data-testid="stMetric"] { min-height:126px; }
+  [data-testid="stMetricLabel"] { min-height:auto;margin-bottom:.35rem; }
+  .identity-attributes > span { flex:1 1 auto;justify-content:center; }
+  .player-fact { padding:14px; }.player-fact-icon { width:38px;height:38px;flex-basis:38px;font-size:20px; }
 }
 </style>
 """

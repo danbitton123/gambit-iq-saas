@@ -86,6 +86,9 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     assert "white-space:normal!important" in theme
     assert "text-overflow:clip!important" in theme
     assert "columns or len(items)" in components
+    assert "max-width: 600px" in theme
+    assert "calc(50% - .4rem)" in theme
+    assert ':has([data-testid="stMetric"])' in theme
 
 
 def test_command_center_has_complete_executive_decision_layers():
