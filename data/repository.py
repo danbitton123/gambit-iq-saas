@@ -10,16 +10,9 @@ import pandas as pd
 import streamlit as st
 
 from config import DB_PATH
+from data.errors import DataConnectionError, SQLQueryError
 from data.generator import generate_database
 from data.warehouse import SCHEMA_VERSION, build_warehouse
-
-
-class DataConnectionError(RuntimeError):
-    """The warehouse could not be opened or reached."""
-
-
-class SQLQueryError(RuntimeError):
-    """A governed SQL query could not be completed."""
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:

@@ -9,7 +9,8 @@ import pandas as pd
 import streamlit as st
 
 from config import APP_NAME, APP_TAGLINE, OPERATOR
-from data.repository import DataConnectionError, SQLContext, SQLQueryError, get_repository
+from data.errors import DataConnectionError, SQLQueryError
+from data.repository import SQLContext, get_repository
 from ui.states import (
     render_connection_error,
     render_invalid_filter,

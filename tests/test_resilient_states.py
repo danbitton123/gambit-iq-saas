@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from data.repository import SQLQueryError, get_repository
+from data.errors import SQLQueryError
+from data.repository import get_repository
 from ui.states import validate_filters
 
 
