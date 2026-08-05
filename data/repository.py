@@ -67,10 +67,7 @@ def _query_cached(sql: str, params_json: str, db_path: str, db_mtime: float) -> 
 class SQLRepository:
     def __init__(self, db_path: Path = DB_PATH):
         self.db_path = db_path
-        if self.db_path == DB_PATH:
-            ensure_database()
-        elif not self.db_path.exists():
-            raise DataConnectionError("Tenant warehouse is unavailable")
+        ensure_database()
 
     def query(self, sql: str, params: dict | None = None) -> pd.DataFrame:
         serialized = json.dumps(params or {}, sort_keys=True, default=str)
@@ -111,9 +108,6 @@ class SQLRepository:
         return pd.Timestamp(value) if value else None
 
     def model_available(self) -> bool:
-        status = self.scalar("SELECT value FROM app_metadata WHERE key='model_status'", default=None)
-        if status == "unavailable":
-            return False
         count = self.scalar("""
             SELECT COUNT(*) FROM sqlite_master
             WHERE type IN ('table','view') AND name IN ('model_scores','model_metrics')
@@ -208,5 +202,5 @@ class SQLContext:
 
 
 @st.cache_resource(show_spinner="Preparing SQL warehouse and ML predictions…")
-def get_repository(db_path: str | None = None) -> SQLRepository:
-    return SQLRepository(Path(db_path) if db_path else DB_PATH)
+def get_repository() -> SQLRepository:
+    return SQLRepository()

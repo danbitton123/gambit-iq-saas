@@ -18,7 +18,7 @@ def render(ctx)->None:
     m=ctx.query(metric_sql).iloc[0]; previous=ctx.previous_query(metric_sql).iloc[0]
     ftd=ctx.query(OBSERVED_FTD_SQL).iloc[0];previous_ftd=ctx.previous_query(OBSERVED_FTD_SQL).iloc[0]
     conversion=ctx.query(OBSERVED_FTD_CONVERSION_D30_SQL).iloc[0]
-    roas_value = f"{m.roas:.1f}x" if m.roas is not None and m.roas == m.roas else "Missing data"
+    roas_value = f"{m.roas:.1f}x" if m.roas is not None and m.roas == m.roas else "—"
     kpis([("Observed FTD",f"{int(ftd.ftd_count or 0):,}",period_delta(ftd.ftd_count,previous_ftd.ftd_count)),("Observed FTD Conversion D30",pct(conversion.ftd_conversion_d30),f"{int(conversion.converted_d30 or 0):,} / {int(conversion.eligible_registrations or 0):,} mature registrations"),("Estimated CAC",money(m.cac,False),"Demo channel-cost assumption"),("Predicted ROAS Proxy 90D",roas_value,"LTV proxy / estimated CAC"),("Predicted High Fraud-Risk Rate",pct(m.fraud,2),"Mature registrations ≥55% score")],ctx)
     source=ctx.query(base+"""SELECT channel,COUNT(*) Players,SUM(converted_d30) FTD_D30,1.0*SUM(converted_d30)/NULLIF(COUNT(*),0) FTD_Conversion_D30,AVG(acquisition_cost) CAC,AVG(predicted_ltv_90d) Predicted_LTV_Proxy,AVG(predicted_ltv_90d/acquisition_cost) Predicted_ROAS_Proxy,AVG(fraud_risk) Fraud_Risk,1-AVG(churn_probability) Predicted_Retention_Proxy,100*AVG(predicted_ltv_90d/acquisition_cost)*(1-AVG(churn_probability))*(1-AVG(fraud_risk))/10 Quality_Score FROM b GROUP BY channel ORDER BY Quality_Score DESC""")
     if source.empty:
