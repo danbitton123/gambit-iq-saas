@@ -63,6 +63,9 @@ def test_all_pages_render_for_global_and_market_filters():
 def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     app = AppTest.from_file(APP, default_timeout=30).run()
     assert not app.exception
+    _widget(app.segmented_control, "Design").set_value("Light").run()
+    assert not app.exception
+    assert _widget(app.segmented_control, "Design").value == "Light"
     _widget(app.selectbox, "Market").set_value("Canada").run()
     assert _widget(app.selectbox, "Market").value == "Canada"
 
@@ -99,6 +102,9 @@ def test_player_360_segments_record_tabs_and_crm_export():
     _widget(app.radio, "Test page").set_value("Player Intelligence").run()
     assert not app.exception
     assert [tab.label for tab in app.tabs] == ["Value & cash", "Gaming behavior", "Risk & RG", "Timeline", "CRM history"]
+    html = "\n".join(str(item.value) for item in app.markdown)
+    assert "player-avatar material-symbols-rounded" in html
+    assert html.count("player-fact-icon material-symbols-rounded") >= 20
     segment = _widget(app.selectbox, "Business segment")
     assert segment.options == [
         "All players", "VIP active", "VIP at risk", "New FTD", "Growing players",

@@ -21,13 +21,14 @@ def polish(fig: go.Figure, height: int = 360, legend: bool = True) -> go.Figure:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=muted, family="Inter"),
-        title_font=dict(color=text, size=13, family="Manrope"),
-        legend=dict(orientation="h", y=1.08, x=0, font=dict(size=10), title_text=""),
+        title_font=dict(color=text, size=14, family="Manrope"),
+        legend=dict(orientation="h", y=1.08, x=0, font=dict(size=10, color=muted), title_text=""),
         showlegend=legend,
         hoverlabel=dict(bgcolor="#ffffff" if light else "#0a2730", font_color=text),
     )
     fig.update_xaxes(showgrid=False, zeroline=False, linecolor=grid, color=muted)
     fig.update_yaxes(gridcolor=grid, zeroline=False, color=muted)
+    fig.update_coloraxes(colorbar=dict(tickfont=dict(color=muted), title_font=dict(color=text)))
     fig.update_layout(hovermode="closest", autosize=True)
     return fig
 

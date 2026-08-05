@@ -60,6 +60,20 @@ SEGMENTS = [
     "Became inactive", "Potential bonus abuse", "RG risk", "High future value",
 ]
 
+SEGMENT_ICONS = {
+    "VIP active": "workspace_premium", "VIP at risk": "diamond", "New FTD": "person_add",
+    "Growing players": "trending_up", "Became inactive": "person_off", "Potential bonus abuse": "confirmation_number",
+    "RG risk": "health_and_safety", "High future value": "query_stats",
+}
+
+FACT_ICONS = {
+    "ggr": "paid", "ltv": "query_stats", "deposit": "account_balance_wallet", "withdraw": "payments",
+    "cash": "currency_exchange", "bonus": "confirmation_number", "first": "event_available", "casino": "casino",
+    "sportsbook": "sports_soccer", "favorite": "star", "frequency": "pace", "last activity": "history",
+    "rfm": "category", "wagered": "toll", "churn": "person_remove", "fraud": "gpp_maybe",
+    "rg": "health_and_safety", "campaign": "campaign", "activation": "verified_user", "session": "schedule",
+}
+
 
 def _stable_number(player_id: str, salt: str, minimum: int, maximum: int) -> int:
     digest = sha256(f"{player_id}:{salt}".encode()).hexdigest()
@@ -100,9 +114,15 @@ def _prepare_players(ctx) -> pd.DataFrame:
     return players
 
 
-def _profile_fact(label: str, value: str, note: str = "") -> None:
+def _fact_icon(label: str) -> str:
+    normalized = label.lower()
+    return next((icon for keyword, icon in FACT_ICONS.items() if keyword in normalized), "analytics")
+
+
+def _profile_fact(label: str, value: str, note: str = "", icon: str | None = None) -> None:
     st.markdown(
-        f"<div class='player-fact'><span>{label}</span><strong>{value}</strong><small>{note}</small></div>",
+        f"<div class='player-fact'><div class='player-fact-icon material-symbols-rounded'>{icon or _fact_icon(label)}</div>"
+        f"<div class='player-fact-copy'><span>{label}</span><strong>{value}</strong><small>{note}</small></div></div>",
         unsafe_allow_html=True,
     )
 
@@ -132,7 +152,7 @@ def render(ctx) -> None:
     segment_cols = st.columns(4)
     for index, row in enumerate(segment_counts.itertuples()):
         with segment_cols[index % 4]:
-            st.markdown(f"<div class='segment-tile'><span>{row.segment}</span><strong>{row.players:,}</strong><small>Players · segments may overlap</small></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='segment-tile'><div class='segment-icon material-symbols-rounded'>{SEGMENT_ICONS[row.segment]}</div><div><span>{row.segment}</span><strong>{row.players:,}</strong><small>Players · segments may overlap</small></div></div>", unsafe_allow_html=True)
 
     f1, f2 = st.columns([1.1, 1])
     with f1:
@@ -157,9 +177,17 @@ def render(ctx) -> None:
     player = players.loc[players.player_id == selected].iloc[0]
     status = "CRM eligible" if player.crm_eligible else "Suppressed from CRM"
     st.markdown(
-        f"<section class='player-identity'><div><span>ANONYMIZED PLAYER</span><h3>{selected}</h3>"
-        f"<p>{player.country} · {player.vip_level} · {player.rfm_segment} · {player.channel} · {player.device}</p></div>"
-        f"<strong class={'identity-good' if player.crm_eligible else 'identity-risk'}>{status}</strong></section>", unsafe_allow_html=True,
+        f"<section class='player-identity'><div class='player-avatar material-symbols-rounded'>person</div>"
+        f"<div class='player-identity-main'><span class='identity-eyebrow'>PLAYER PROFILE</span><h3>{selected}</h3>"
+        f"<div class='identity-attributes'>"
+        f"<span><i class='material-symbols-rounded'>public</i>{player.country}</span>"
+        f"<span><i class='material-symbols-rounded'>workspace_premium</i>{player.vip_level}</span>"
+        f"<span><i class='material-symbols-rounded'>category</i>{player.rfm_segment}</span>"
+        f"<span><i class='material-symbols-rounded'>conversion_path</i>{player.channel}</span>"
+        f"<span><i class='material-symbols-rounded'>smartphone</i>{player.device}</span></div></div>"
+        f"<div class='identity-status'><strong class={'identity-good' if player.crm_eligible else 'identity-risk'}>"
+        f"<i class='material-symbols-rounded'>{'verified' if player.crm_eligible else 'block'}</i>{status}</strong>"
+        f"<small>{player.recommended_action}</small></div></section>", unsafe_allow_html=True,
     )
 
     value_tab, behavior_tab, risk_tab, timeline_tab, crm_tab = st.tabs(["Value & cash", "Gaming behavior", "Risk & RG", "Timeline", "CRM history"])
