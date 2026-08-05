@@ -1,0 +1,31 @@
+{
+  "model_version": "2026.08-rf-v1",
+  "training_cutoff": "2026-06-30 23:59:59",
+  "rows": 6719,
+  "metrics": {
+    "churn": {
+      "roc_auc": 0.7365,
+      "f1": 0.117,
+      "positive_rate": 0.0396
+    },
+    "fraud": {
+      "roc_auc": 0.5927,
+      "f1": 0.0235,
+      "positive_rate": 0.038
+    },
+    "responsible_gaming": {
+      "roc_auc": 0.8856,
+      "f1": 0.4814,
+      "positive_rate": 0.1061
+    },
+    "ltv": {
+      "mae": 219.65,
+      "r2": 0.0721,
+      "mean_target": 197.42
+    },
+    "revenue_forecast": {
+      "mae": 5575.13,
+      "r2": -1.3863
+    }
+  }
+}

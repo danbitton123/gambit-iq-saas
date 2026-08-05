@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.streamlit/secrets.toml
+data/*.db
+!data/gambit_iq.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+data/.*.building.db*
+*.pyc
+.env
