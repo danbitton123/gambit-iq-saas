@@ -43,7 +43,10 @@ WITH casino AS (
   ) WHERE rank=1
 )
 SELECT v.player_id,v.country,v.channel,v.device,v.vip_level,v.kyc_status,v.registration_date,
-       v.predicted_ltv_90d,v.churn_probability,v.fraud_risk,v.rg_risk,v.model_confidence,v.recommended_action,
+       v.predicted_ltv_90d,v.churn_probability,v.churn_probability_7d,v.churn_probability_14d,v.churn_probability_30d,
+       v.observed_value,v.remaining_ltv_30d,v.remaining_ltv_90d,v.remaining_ltv_180d,
+       v.predicted_total_ltv_30d,v.predicted_total_ltv_90d,v.predicted_total_ltv_180d,
+       v.fraud_risk,v.rg_risk,v.model_confidence,v.recommended_action,
        COALESCE(l.lifetime_ggr,0) lifetime_ggr,l.last_activity,f.ftd_date,COALESCE(c.sessions,0) sessions,
        COALESCE(c.minutes,0) minutes,COALESCE(c.casino_bets,0) casino_bets,COALESCE(c.casino_ggr,0) casino_ggr,
        COALESCE(s.sports_bets,0) sports_bets,COALESCE(s.sports_handle,0) sports_handle,COALESCE(s.sports_ggr,0) sports_ggr,
@@ -108,7 +111,7 @@ def _prepare_players(ctx) -> pd.DataFrame:
     deposit_cutoff = max(float(players.deposit_count.quantile(.85) or 0), 2)
     players["Potential bonus abuse"] = (players.deposit_count >= deposit_cutoff) & players.fraud_risk.between(.35, .55, inclusive="left")
     players["RG risk"] = players.rg_risk >= .55
-    players["High future value"] = players.predicted_ltv_90d >= 1800
+    players["High future value"] = players.predicted_total_ltv_180d >= players.predicted_total_ltv_180d.quantile(.90)
     players["segment_tags"] = players.apply(lambda row: ", ".join(segment for segment in SEGMENTS[1:] if bool(row[segment])) or "Standard", axis=1)
     players["crm_eligible"] = (players.fraud_risk < .55) & (players.rg_risk < .55) & (players.kyc_status == "Verified")
     return players
@@ -140,10 +143,10 @@ def render(ctx) -> None:
     kpis([
         ("Observed Active Players", f"{len(active):,}", period_delta(len(active), len(previous_active))),
         ("Observed Lifetime GGR", money(players.lifetime_ggr.sum()), "All players in selected market"),
-        ("Predicted LTV Proxy 90D", money(active.predicted_ltv_90d.sum()), "Active-player future value proxy"),
+        ("Predicted Remaining LTV 90D", money(active.remaining_ltv_90d.sum()), "Future value after the scoring date"),
         ("Predicted High Churn Risk", f"{int((active.churn_probability >= .70).sum()):,}", "Active players ≥70%"),
         ("Predicted RG Interventions", f"{int(players['RG risk'].sum()):,}", "RG review threshold ≥55%"),
-        ("Predicted VIP Candidates", f"{int(players['High future value'].sum()):,}", "LTV Proxy ≥ $1,800"),
+        ("Predicted VIP Candidates", f"{int(players['High future value'].sum()):,}", "Top 10% predicted total LTV 180D"),
         ("Observed Retention D30", pct(retention.retention_d30), f"{int(retention.retained_players or 0):,} / {int(retention.eligible_players or 0):,} eligible"),
     ], ctx)
 
@@ -195,16 +198,17 @@ def render(ctx) -> None:
         cols = st.columns(4)
         facts = [
             ("Observed lifetime GGR", money(player.lifetime_ggr, False), "Casino + sportsbook"),
-            ("Predicted LTV Proxy 90D", money(player.predicted_ltv_90d, False), "Predicted positive GGR proxy"),
+            ("Observed value", money(player.observed_value, False), "Value measured before scoring"),
+            ("Predicted remaining LTV 90D", money(player.remaining_ltv_90d, False), "Future value after scoring"),
+            ("Predicted total LTV 180D", money(player.predicted_total_ltv_180d, False), "Observed + remaining predicted value"),
             ("Observed deposits", money(player.deposits, False), f"{int(player.deposit_count):,} approved deposits"),
             ("Observed withdrawals", money(player.withdrawals, False), "Approved transactions"),
             ("Observed period GGR", money(player.period_ggr, False), ctx.period_label),
             ("Observed net cash flow", money(player.deposits-player.withdrawals, False), "Deposits − withdrawals"),
-            ("Estimated bonus provision", money(max(player.period_ggr, 0)*.065, False), "Demo assumption: 6.5% of positive GGR"),
             ("First approved deposit", f"{pd.Timestamp(player.ftd_date):%d %b %Y}" if pd.notna(player.ftd_date) else "No FTD", "Observed"),
         ]
-        for col, fact in zip(cols * 2, facts):
-            with col:
+        for index, fact in enumerate(facts):
+            with cols[index % 4]:
                 _profile_fact(*fact)
     with behavior_tab:
         cols = st.columns(4)
@@ -227,8 +231,10 @@ def render(ctx) -> None:
         fig = px.bar(preferred, x="sessions", y="game_name", orientation="h", color="ggr", title="FAVORITE CASINO GAMES", color_continuous_scale=[COLORS["red"], COLORS["gold"], COLORS["green"]])
         chart(polish(fig, 320, False), preferred, explanation="Lifetime casino sessions ranked by game; color represents observed GGR.")
     with risk_tab:
-        gauges = st.columns(3)
-        for col, label, value in zip(gauges, ["Predicted churn", "Predicted fraud", "Predicted RG risk"], [player.churn_probability, player.fraud_risk, player.rg_risk]):
+        gauges = st.columns(5)
+        for col, label, value in zip(gauges,
+            ["Predicted churn 7D", "Predicted churn 14D", "Predicted churn 30D", "Predicted fraud", "Predicted RG risk"],
+            [player.churn_probability_7d, player.churn_probability_14d, player.churn_probability_30d, player.fraud_risk, player.rg_risk]):
             with col:
                 color = COLORS["red"] if value >= .55 else COLORS["gold"] if value >= .35 else COLORS["green"]
                 fig = go.Figure(go.Indicator(mode="gauge+number", value=float(value)*100, number={"suffix": "%"}, gauge={"axis": {"range": [0, 100]}, "bar": {"color": color}, "steps": [{"range": [0,35], "color": "rgba(39,209,127,.10)"}, {"range": [35,55], "color": "rgba(245,184,75,.10)"}, {"range": [55,100], "color": "rgba(255,91,87,.10)"}]}, title={"text": label}))

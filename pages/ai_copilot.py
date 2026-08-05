@@ -58,6 +58,74 @@ def _alert_card(alert: DecisionAlert) -> None:
     )
 
 
+def _render_ml_lab(ctx) -> None:
+    metrics = ctx.repo.query("""SELECT model_name,horizon_days,split,metric_name,metric_value,model_version,measured_at
+        FROM model_metrics_v2 ORDER BY model_name,split,metric_name""")
+    forecasts = ctx.query("""SELECT metric,forecast_date,actual_value,predicted_value,lower_bound,upper_bound,split
+        FROM forecast_backtest WHERE forecast_date>=DATE(:start) AND forecast_date<DATE(:end) ORDER BY forecast_date""")
+    anomalies = ctx.query("""SELECT detected_date,metric,current_value,usual_value,anomaly_score,severity,method
+        FROM ml_anomalies WHERE detected_date>=DATE(:start) AND detected_date<DATE(:end)
+        ORDER BY anomaly_score DESC""")
+    actions = ctx.repo.query("""SELECT recommended_action,COUNT(*) players,SUM(estimated_value_at_stake) value_at_stake,
+        AVG(action_confidence) confidence FROM next_best_actions GROUP BY recommended_action ORDER BY value_at_stake DESC""")
+
+    test_metrics = metrics[metrics.split.eq("test")]
+    churn_auc = test_metrics[(test_metrics.model_name.eq("churn_30d")) & (test_metrics.metric_name.eq("roc_auc"))]
+    churn_lift = test_metrics[(test_metrics.model_name.eq("churn_30d")) & (test_metrics.metric_name.eq("lift_top_10pct"))]
+    forecast_wape = test_metrics[(test_metrics.model_name.eq("forecast_ggr")) & (test_metrics.metric_name.eq("wape"))]
+    kpis([
+        ("Test Churn ROC-AUC 30D", pct(churn_auc.metric_value.iloc[0] if not churn_auc.empty else None, 3), "Latest untouched temporal test"),
+        ("Test Churn Lift · Top 10%", f"{churn_lift.metric_value.iloc[0]:.2f}x" if not churn_lift.empty else "Missing data", "Risk concentration versus baseline"),
+        ("Test GGR Forecast Accuracy", pct(1-forecast_wape.metric_value.iloc[0] if not forecast_wape.empty else None, 2), "1 − WAPE on latest test window"),
+        ("Detected ML Anomalies", f"{len(anomalies):,}", "Selected period · Isolation Forest"),
+        ("Players with Active NBA", f"{int(actions.loc[~actions.recommended_action.eq('Do nothing'),'players'].sum()):,}" if not actions.empty else "Missing data", "Human review required"),
+    ], ctx)
+
+    st.markdown("<div class='ml-policy'><span class='material-symbols-rounded'>verified_user</span><div><small>LEAKAGE CONTROL</small><strong>Past training → recent validation → latest untouched test</strong><p>Every horizon owns its observation window. Test performance is frozen before final refitting.</p></div></div>", unsafe_allow_html=True)
+    performance_tab, forecast_tab, anomaly_tab, nba_tab = st.tabs(["Model performance", "Forecast backtests", "Anomalies", "Next Best Action"])
+    with performance_tab:
+        selector, split_col = st.columns([1.4, 1])
+        model_options = sorted(metrics.model_name.unique())
+        with selector: selected_model = st.selectbox("Model", model_options, key="ml_model_selector")
+        with split_col: selected_split = st.segmented_control("Evaluation split", ["validation", "test"], default="test", key="ml_split")
+        selected = metrics[(metrics.model_name.eq(selected_model)) & (metrics.split.eq(selected_split or "test"))]
+        left, right = st.columns([1.15, 1.85])
+        with left:
+            st.markdown("#### Audited scorecard")
+            data_table(selected[["metric_name","metric_value","horizon_days","model_version"]].rename(columns={"metric_name":"Metric","metric_value":"Value","horizon_days":"Horizon (days)","model_version":"Version"}))
+        with right:
+            plot = selected[selected.metric_name.isin(["roc_auc","precision","recall","lift_top_10pct","wape","interval_80_coverage"])].copy()
+            if not plot.empty:
+                fig = px.bar(plot, x="metric_name", y="metric_value", color="metric_name", text_auto=".3f", title="OUT-OF-TIME PERFORMANCE")
+                fig.update_layout(showlegend=False)
+                chart(polish(fig, 360, False), plot, explanation="Metrics come only from the selected chronological validation or untouched test window.")
+        st.caption("Revenue actually saved after campaign requires a connected campaign-assignment and outcome ledger. It is intentionally not fabricated in the demo.")
+    with forecast_tab:
+        if forecasts.empty:
+            st.info("No forecast backtest falls inside the selected period.")
+        else:
+            metric = st.selectbox("Forecast target", sorted(forecasts.metric.unique()), key="forecast_target")
+            view = forecasts[forecasts.metric.eq(metric)].copy(); view["forecast_date"] = pd.to_datetime(view.forecast_date)
+            fig = px.line(view, x="forecast_date", y=["actual_value","predicted_value"], title=f"{metric.upper()} · PREDICTION VS ACTUAL")
+            fig.add_scatter(x=view.forecast_date, y=view.upper_bound, mode="lines", line={"width":0}, showlegend=False)
+            fig.add_scatter(x=view.forecast_date, y=view.lower_bound, mode="lines", fill="tonexty", line={"width":0}, name="80% interval", fillcolor="rgba(39,209,127,.14)")
+            chart(polish(fig, 420), view, explanation="Chronological backtest. The shaded 80% empirical interval is calibrated from validation residuals.")
+    with anomaly_tab:
+        if anomalies.empty: st.success("No anomaly was detected in the selected period.")
+        else:
+            data_table(anomalies, column_config={"current_value":st.column_config.NumberColumn("Current",format="%.2f"),"usual_value":st.column_config.NumberColumn("Usual",format="%.2f"),"anomaly_score":st.column_config.ProgressColumn("Anomaly score",min_value=0,max_value=max(float(anomalies.anomaly_score.max()),1),format="%.3f")})
+    with nba_tab:
+        left, right = st.columns([1.35, 1])
+        with left:
+            data_table(actions, column_config={"value_at_stake":st.column_config.NumberColumn("Estimated value at stake",format="$%.0f"),"confidence":st.column_config.ProgressColumn(min_value=0,max_value=1,format="%.1%%")})
+        with right:
+            actionable = actions[~actions.recommended_action.eq("Do nothing")]
+            if not actionable.empty:
+                fig = px.bar(actionable, x="players", y="recommended_action", orientation="h", color="value_at_stake", title="ACTIONABLE PLAYER QUEUE", color_continuous_scale=[COLORS["cyan"],COLORS["green"]])
+                chart(polish(fig, 380, False), actionable, explanation="Actions are ranked decision support. RG and fraud safeguards override commercial actions.")
+        st.warning("Next Best Action never executes automatically. Responsible Gaming suppression and manual-review rules take precedence over commercial recommendations.")
+
+
 def render(ctx) -> None:
     page_header("AI DECISION ENGINE", "Automated anomaly detection, accountable recommendations and action tracking", "Operational Intelligence")
     with st.spinner("Evaluating governed decision rules…"):
@@ -79,7 +147,7 @@ def render(ctx) -> None:
         ("Observed Reviewed Decisions", f"{reviewed:,} / {len(alerts):,}", "Session action register"),
     ], ctx)
 
-    alerts_tab, recommendations_tab, governance_tab = st.tabs(["Intelligent alerts", "Recommendation center", "Rule governance"])
+    alerts_tab, recommendations_tab, governance_tab, ml_tab = st.tabs(["Intelligent alerts", "Recommendation center", "Rule governance", "ML Intelligence"])
     with alerts_tab:
         if not alerts:
             st.success("No governed threshold is breached for the selected period and market.")
@@ -169,5 +237,8 @@ def render(ctx) -> None:
             ["Governed SQL snapshot", "Threshold + probable cause", "Named accountable team", "Human-approved response", "Record verified outcome"]):
             with col:
                 st.markdown(f"<div class='decision-step'><span class='material-symbols-rounded'>{icon}</span><strong>{title}</strong><small>{body}</small></div>", unsafe_allow_html=True)
+
+    with ml_tab:
+        _render_ml_lab(ctx)
 
     st.caption("Decision Engine outputs are decision support. Thresholds, financial impact and recovery potential require owner validation before action.")

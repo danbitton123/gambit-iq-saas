@@ -45,6 +45,16 @@ To open the app from an iPhone on the same Wi-Fi, use `http://YOUR_COMPUTER_IP:8
 
 For the simplest launch, run `run.bat` on Windows or `./run.sh` on macOS/Linux. These scripts create the virtual environment and install missing packages automatically.
 
+## Accounts and Excel onboarding
+
+The application opens on a responsive welcome screen. Users can create an account with email and password, or sign in with Google once the deployment administrator has configured OIDC. Email passwords are salted and hashed with PBKDF2-SHA256; plaintext passwords are never stored.
+
+Copy `.streamlit/secrets.toml.example` to the deployment's Streamlit secrets and replace every placeholder to enable Google sign-in. Never commit the resulting `secrets.toml` file.
+
+Each account receives a separate SQLite warehouse under `data/tenants/<user-id>/`. The onboarding accepts one `.xlsx` workbook containing named sheets, or several workbooks named after their table. Recognized tables are `players`, `games`, `sessions`, `transactions` and `sports_bets`. `players` is mandatory; at least one activity table is mandatory; `games` is mandatory when casino sessions are supplied. New imports replace live tenant data only after validation and warehouse quality checks succeed.
+
+Unavailable inputs and model outputs are shown as **Missing data**, rather than silently converted to zero. A secure demo dataset is available from onboarding for product evaluation.
+
 ## Data
 
 On first launch, `data/gambit_iq.db` is generated automatically. It contains deterministic synthetic data from 1 January through 4 August 2026:
@@ -154,6 +164,18 @@ Player 360 combines portfolio segmentation and individual drill-down: observed v
 
 The AI Decision Engine evaluates ten auditable rules for revenue, RTP, acquisition, providers, payments, conversion, sportsbook exposure, revenue concentration, fraud and Responsible Gaming. Triggered alerts feed an operational recommendation register with accountable owner, impact, recovery potential, effort, priority, confidence, status and measured-result tracking.
 
+## Temporal ML v2
+
+The governed ML pipeline uses strict out-of-time evaluation: older snapshots train each model, a more recent period validates it, and the latest eligible period remains an untouched test set. No random player split is used for reported performance.
+
+- churn probabilities at 7, 14 and 30 days, evaluated with ROC-AUC, precision, recall and lift in the highest-risk decile;
+- remaining LTV at 30, 90 and 180 days, kept separate from observed value and predicted total LTV;
+- daily GGR, estimated NGR, deposits, FTD, casino GGR and sportsbook GGR backtests with empirical 80% intervals;
+- Isolation Forest anomaly detection over operational time series;
+- human-reviewed Next Best Action with Responsible Gaming and fraud safeguards taking priority over commercial actions.
+
+The **ML Intelligence** workspace in AI Copilot exposes validation/test scorecards, forecast-versus-actual charts, anomaly evidence and action queues. Revenue actually saved is intentionally reported as unavailable until a real campaign assignment and outcome ledger is connected.
+
 ## Moving to PostgreSQL
 
 SQLite is intentionally used for the zero-configuration MVP. The UI reads through `data/repository.py`, so the production migration consists of:
@@ -161,7 +183,7 @@ SQLite is intentionally used for the zero-configuration MVP. The UI reads throug
 1. replacing the SQLite connection with a SQLAlchemy engine;
 2. moving the generated tables to PostgreSQL;
 3. using secrets/environment variables for credentials;
-4. adding tenant IDs and row-level access control;
+4. replacing per-user SQLite files with tenant IDs and PostgreSQL row-level access control;
 5. retraining and validating the models on operator-specific, time-split data.
 
 The `.env.example` file documents the intended environment variables.
@@ -177,4 +199,4 @@ The included database is under GitHub's individual-file size limit. Do not publi
 
 ## Important production requirements
 
-Before accepting real operator data, add authentication, tenant isolation, encryption, backups, audit logs, secrets management, access reviews, data-retention rules, monitoring, legal review and jurisdiction-specific responsible-gambling controls. AI recommendations should remain human-reviewed until validated through controlled experiments.
+The MVP includes authentication and file-level tenant isolation. Before accepting production operator data, migrate identity and storage to managed durable services, then add encryption key management, backups, audit logs, access reviews, data-retention rules, monitoring, legal review and jurisdiction-specific responsible-gambling controls. Local SQLite files created on Streamlit Community Cloud are not durable across every restart or redeployment. AI recommendations should remain human-reviewed until validated through controlled experiments.

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-SCHEMA_VERSION = "3.0-free-layered"
+SCHEMA_VERSION = "4.0-temporal-ml"
 SQL_ROOT = Path(__file__).resolve().parents[1] / "sql" / "warehouse"
 BASE_SCRIPTS = ["10_staging.sql", "20_dimensions.sql", "30_facts.sql", "40_intermediate.sql", "50_marts.sql"]
 

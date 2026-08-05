@@ -47,7 +47,7 @@ def test_all_pages_render_for_global_and_market_filters():
 
     assert {
         "Estimated NGR",
-        "Predicted LTV Proxy 90D",
+        "Predicted Remaining LTV 90D",
         "Observed FTD Conversion D30",
         "Observed Retention D30",
         "Observed Actual RTP",

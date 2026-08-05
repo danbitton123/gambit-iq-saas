@@ -30,7 +30,14 @@ def _needs_rebuild() -> bool:
     try:
         with sqlite3.connect(DB_PATH) as conn:
             version = conn.execute("SELECT value FROM app_metadata WHERE key='schema_version'").fetchone()
-            return version is None or version[0] != SCHEMA_VERSION or not _table_exists(conn, "model_scores") or not _table_exists(conn, "mart_executive_daily")
+            return (
+                version is None or version[0] != SCHEMA_VERSION
+                or not _table_exists(conn, "model_scores")
+                or not _table_exists(conn, "model_metrics_v2")
+                or not _table_exists(conn, "forecast_backtest")
+                or not _table_exists(conn, "next_best_actions")
+                or not _table_exists(conn, "mart_executive_daily")
+            )
     except sqlite3.Error:
         return True
 
@@ -67,7 +74,10 @@ def _query_cached(sql: str, params_json: str, db_path: str, db_mtime: float) -> 
 class SQLRepository:
     def __init__(self, db_path: Path = DB_PATH):
         self.db_path = db_path
-        ensure_database()
+        if self.db_path == DB_PATH:
+            ensure_database()
+        elif not self.db_path.exists():
+            raise DataConnectionError("Tenant warehouse is unavailable")
 
     def query(self, sql: str, params: dict | None = None) -> pd.DataFrame:
         serialized = json.dumps(params or {}, sort_keys=True, default=str)
@@ -108,6 +118,9 @@ class SQLRepository:
         return pd.Timestamp(value) if value else None
 
     def model_available(self) -> bool:
+        status = self.scalar("SELECT value FROM app_metadata WHERE key='model_status'", default=None)
+        if status == "unavailable":
+            return False
         count = self.scalar("""
             SELECT COUNT(*) FROM sqlite_master
             WHERE type IN ('table','view') AND name IN ('model_scores','model_metrics')
@@ -202,5 +215,5 @@ class SQLContext:
 
 
 @st.cache_resource(show_spinner="Preparing SQL warehouse and ML predictions…")
-def get_repository() -> SQLRepository:
-    return SQLRepository()
+def get_repository(db_path: str | None = None) -> SQLRepository:
+    return SQLRepository(Path(db_path) if db_path else DB_PATH)

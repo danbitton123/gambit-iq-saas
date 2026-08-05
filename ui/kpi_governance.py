@@ -32,6 +32,7 @@ KPI_REGISTRY: dict[str, KPIInfo] = {
     "Estimated CAC": KPIInfo("Average demo acquisition cost assigned by channel.", "AVG(channel cost assumption)", "players.channel + demo cost mapping", "Estimated"),
     "Predicted ROAS Proxy 90D": KPIInfo("Predicted 90-day GGR proxy relative to estimated acquisition cost.", "Predicted LTV proxy 90D / estimated CAC", "model_scores + demo cost mapping", "Predicted"),
     "Predicted LTV Proxy 90D": KPIInfo("Modelled 90-day positive GGR proxy; not true net lifetime value.", "Model prediction extrapolated from future positive GGR", "model_scores.predicted_ltv_90d", "Predicted"),
+    "Predicted Remaining LTV 90D": KPIInfo("Future positive GGR predicted for the 90 days after scoring, excluding value already observed.", "Model prediction over the 90-day outcome horizon", "model_scores.remaining_ltv_90d", "Predicted"),
     "Predicted Churn-Risk Players": KPIInfo("Active players with predicted churn probability of at least 70%.", "COUNT(players WHERE churn_probability ≥ 0.70)", "model_scores + filtered activity", "Predicted"),
     "Estimated Risk Exposure": KPIInfo("Lifetime GGR proxy linked to active accounts above fraud or RG review thresholds.", "SUM(MAX(lifetime_ggr, 0)) for flagged active accounts", "model_scores + filtered activity", "Estimated"),
     "Predicted High Churn Risk": KPIInfo("Active players with predicted churn probability of at least 70%.", "COUNT(players WHERE churn_probability ≥ 0.70)", "model_scores + filtered activity", "Predicted"),
@@ -65,6 +66,11 @@ KPI_REGISTRY: dict[str, KPIInfo] = {
     "Predicted Churn Probability": KPIInfo("Estimated probability of no qualifying activity in the model outcome window.", "Calibrated classifier probability", "model_scores.churn_probability", "Predicted"),
     "Predicted Fraud Risk": KPIInfo("Estimated probability proxy used to prioritize fraud review.", "Calibrated classifier probability", "model_scores.fraud_risk", "Predicted"),
     "Predicted RG Risk": KPIInfo("Estimated probability proxy used to prioritize player-protection review.", "Calibrated classifier probability", "model_scores.rg_risk", "Predicted"),
+    "Test Churn ROC-AUC 30D": KPIInfo("Discrimination of the 30-day churn model on the latest untouched temporal test window.", "Area under the ROC curve", "model_metrics_v2", "Observed model evaluation"),
+    "Test Churn Lift · Top 10%": KPIInfo("Concentration of true churners in the highest-risk decile versus the portfolio baseline.", "Top-decile churn rate / overall churn rate", "model_metrics_v2", "Observed model evaluation"),
+    "Test GGR Forecast Accuracy": KPIInfo("Accuracy of daily GGR forecasts on the latest untouched temporal test window.", "1 − weighted absolute percentage error", "model_metrics_v2", "Observed model evaluation"),
+    "Detected ML Anomalies": KPIInfo("Operational observations flagged as unusual by the anomaly detector.", "COUNT(Isolation Forest score above governed threshold)", "ml_anomalies", "Predicted"),
+    "Players with Active NBA": KPIInfo("Scored players assigned a human-reviewed action other than doing nothing.", "COUNT(recommended_action != Do nothing)", "next_best_actions", "Predicted"),
     "Predicted Model Confidence Detail": KPIInfo("Confidence stored for the selected player's score set.", "Model confidence output", "model_scores.model_confidence", "Predicted"),
 }
 

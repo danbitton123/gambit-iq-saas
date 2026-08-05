@@ -17,10 +17,13 @@ def test_generated_data_is_consistent():
 def test_sql_warehouse_and_ml_scores(tmp_path):
     db=tmp_path/"test.db";generate_database(db);report=train_and_score(db,tmp_path/"models");build_warehouse(db,include_ml=True)
     with sqlite3.connect(db) as conn:
-        players=conn.execute("SELECT COUNT(*) FROM players WHERE registration_date<='2026-06-30 23:59:59'").fetchone()[0]
+        players=conn.execute("""SELECT COUNT(*) FROM players p WHERE registration_date<='2026-07-21 23:59:59'
+            AND EXISTS(SELECT 1 FROM sessions s WHERE s.player_id=p.player_id UNION ALL
+                       SELECT 1 FROM sports_bets b WHERE b.player_id=p.player_id UNION ALL
+                       SELECT 1 FROM transactions t WHERE t.player_id=p.player_id)""").fetchone()[0]
         scores=conn.execute("SELECT COUNT(*) FROM model_scores").fetchone()[0]
         invalid=conn.execute("SELECT COUNT(*) FROM model_scores WHERE churn_probability NOT BETWEEN 0 AND 1 OR fraud_risk NOT BETWEEN 0 AND 1 OR rg_risk NOT BETWEEN 0 AND 1").fetchone()[0]
         metrics=conn.execute("SELECT COUNT(DISTINCT model_name) FROM model_metrics").fetchone()[0]
         views=conn.execute("SELECT COUNT(*) FROM v_sessions_enriched").fetchone()[0]
         mart_players=conn.execute("SELECT COUNT(*) FROM mart_player_360").fetchone()[0]
-    assert report["rows"]==players==scores==mart_players;assert invalid==0;assert metrics==5;assert views>0
+    assert report["rows"]==players==scores==mart_players;assert invalid==0;assert metrics>=12;assert views>0

@@ -1,5 +1,7 @@
 """Streamlit test harness for rendering every dashboard module."""
 
+import os
+
 import pandas as pd
 import streamlit as st
 
@@ -19,7 +21,7 @@ PAGES = {
     "Risk & Compliance": risk.render,
 }
 
-repo = get_repository()
+repo = get_repository(os.getenv("GAMBIT_TEST_DB") or None)
 market = st.selectbox("Market", ["All markets"] + repo.countries())
 page = st.radio("Test page", list(PAGES))
 context = SQLContext(repo, pd.Timestamp("2026-05-07"), pd.Timestamp("2026-08-04"), market)

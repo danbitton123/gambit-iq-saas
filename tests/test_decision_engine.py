@@ -37,8 +37,10 @@ def test_decision_engine_page_exposes_operational_workflow():
     app = AppTest.from_file(Path(__file__).parent / "app_harness.py", default_timeout=30).run()
     next(widget for widget in app.radio if widget.label == "Test page").set_value("AI Copilot").run()
     assert not app.exception
-    assert [tab.label for tab in app.tabs] == ["Intelligent alerts", "Recommendation center", "Rule governance"]
-    assert [metric.label for metric in app.metric] == [
+    tab_labels = [tab.label for tab in app.tabs]
+    assert tab_labels[:4] == ["Intelligent alerts", "Recommendation center", "Rule governance", "ML Intelligence"]
+    assert {"Model performance", "Forecast backtests", "Anomalies", "Next Best Action"} <= set(tab_labels)
+    assert [metric.label for metric in app.metric][:5] == [
         "Observed Active Alerts", "Observed Critical Alerts", "Estimated Alert Impact",
         "Estimated Recovery Potential", "Observed Reviewed Decisions",
     ]

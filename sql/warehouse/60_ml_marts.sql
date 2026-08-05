@@ -2,6 +2,9 @@
 DROP VIEW IF EXISTS mart_player_360;
 CREATE VIEW mart_player_360 AS
 SELECT p.*,m.predicted_ltv_90d,m.churn_probability,m.fraud_risk,m.rg_risk,
+       m.churn_probability_7d,m.churn_probability_14d,m.churn_probability_30d,
+       m.observed_value,m.remaining_ltv_30d,m.remaining_ltv_90d,m.remaining_ltv_180d,
+       m.predicted_total_ltv_30d,m.predicted_total_ltv_90d,m.predicted_total_ltv_180d,
        m.recommended_action,m.model_confidence,m.last_session,m.session_count,m.lifetime_ggr,m.model_version,m.scored_at,
        f.ftd_at,f.ftd_date,a.first_activity_date
 FROM dim_player p JOIN model_scores m USING(player_id)
