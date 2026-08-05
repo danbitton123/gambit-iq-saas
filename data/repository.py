@@ -147,6 +147,30 @@ class SQLContext:
             )
         """, default=0) or 0)
 
+    @property
+    def period_label(self) -> str:
+        return f"{self.start:%d %b %Y} – {self.end:%d %b %Y} · {self.country}"
+
+    def last_updated_label(self) -> str:
+        value = self.scalar("""
+            SELECT MAX(event_timestamp) FROM (
+              SELECT s.session_start event_timestamp FROM v_sessions_enriched s
+              WHERE s.session_start>=:start AND s.session_start<:end
+                AND (:country='All markets' OR s.country=:country)
+              UNION ALL
+              SELECT t.transaction_date FROM v_transactions_enriched t
+              WHERE t.transaction_date>=:start AND t.transaction_date<:end
+                AND (:country='All markets' OR t.country=:country)
+              UNION ALL
+              SELECT b.bet_date FROM v_sports_bets_enriched b
+              WHERE b.bet_date>=:start AND b.bet_date<:end
+                AND (:country='All markets' OR b.country=:country)
+            )
+        """, default=None)
+        if not value:
+            return "No matching refresh"
+        return f"{pd.Timestamp(value):%d %b %Y, %H:%M} UTC"
+
 
 @st.cache_resource(show_spinner="Preparing SQL warehouse and ML predictions…")
 def get_repository() -> SQLRepository:

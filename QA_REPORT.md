@@ -20,6 +20,9 @@ Date de validation : 5 août 2026
 - Vérification de la cohérence couleur : vert = favorable, or = vigilance, rouge = risque.
 - Vérification responsive : colonnes empilées et tableaux défilables sous 768 px.
 - Remplacement des valeurs décoratives non justifiées par des données filtrées, des estimations explicitement nommées ou des explications.
+- Validation de la gouvernance KPI version 1.1 : statuts Observed/Estimated/Predicted et infobulles complètes.
+- Validation SQL des cohortes matures FTD Conversion D30 et Observed Retention D30.
+- Réconciliation du signe RTP `Actual − Theoretical` entre les faits et le data mart.
 - Reconstruction idempotente des couches raw, staging, dimensions, facts, intermediate et marts.
 - Réconciliation des volumes raw/facts, des clés étrangères et du GGR raw/fact/mart.
 - Entraînement réel de cinq pipelines scikit-learn et persistance Joblib.

@@ -1,4 +1,4 @@
--- GAMBIT IQ KPI reference queries — Definition version 1.0
+-- GAMBIT IQ KPI reference queries — Definition version 1.1
 -- Parameters use half-open intervals: :start inclusive, :end exclusive.
 
 -- 1–3. Total GGR, provisional NGR and GGR margin
@@ -55,7 +55,7 @@ JOIN players p USING (player_id)
 WHERE f.ftd_date >= :start AND f.ftd_date < :end
   AND (:country = 'All markets' OR p.country = :country);
 
--- 6. FTD Conversion D30 by registration cohort
+-- 6. Observed FTD Conversion D30 by mature registration cohort
 WITH first_deposit AS (
     SELECT player_id, MIN(transaction_date) AS ftd_date
     FROM transactions
@@ -64,9 +64,9 @@ WITH first_deposit AS (
 ), eligible AS (
     SELECT p.player_id, p.registration_date, f.ftd_date
     FROM players p LEFT JOIN first_deposit f USING (player_id)
-    WHERE p.registration_date >= :cohort_start
-      AND p.registration_date < :cohort_end
-      AND p.registration_date <= DATETIME(:as_of_date, '-30 days')
+    WHERE p.registration_date >= :start
+      AND p.registration_date < :end
+      AND p.registration_date <= DATETIME(:end, '-30 days')
       AND (:country = 'All markets' OR p.country = :country)
 )
 SELECT COUNT(*) AS eligible_registrations,
@@ -84,7 +84,8 @@ WHERE transaction_type = 'Deposit' AND transaction_status = 'Approved'
   AND transaction_date >= :start AND transaction_date < :end
   AND (:country = 'All markets' OR country = :country);
 
--- 8. Observed Retention D30: return on days 30–36 after first gaming activity
+-- 8. Observed Retention D30: return on days 30–36 after first gaming activity.
+-- :start/:end select the activation cohort; :end is also the reporting as-of boundary.
 WITH activity AS (
     SELECT player_id, DATE(session_start) AS activity_date FROM sessions
     UNION
@@ -95,8 +96,8 @@ WITH activity AS (
 ), eligible AS (
     SELECT f.player_id, f.activation_date
     FROM first_activity f JOIN players p USING (player_id)
-    WHERE f.activation_date >= :cohort_start AND f.activation_date < :cohort_end
-      AND f.activation_date <= DATE(:as_of_date, '-37 days')
+    WHERE f.activation_date >= DATE(:start) AND f.activation_date < DATE(:end)
+      AND f.activation_date <= DATE(:end, '-37 days')
       AND (:country = 'All markets' OR p.country = :country)
 ), retained AS (
     SELECT DISTINCT e.player_id
@@ -109,7 +110,8 @@ SELECT COUNT(*) AS eligible_players,
        1.0 * COUNT(r.player_id) / NULLIF(COUNT(*), 0) AS retention_d30
 FROM eligible e LEFT JOIN retained r USING (player_id);
 
--- 9–10. Actual RTP and bet-weighted RTP variance by game
+-- 9–10. Observed Actual RTP and signed RTP variance by game.
+-- Positive variance is player-favourable/lower operator margin; negative is operator-favourable.
 SELECT game_name,
        SUM(total_bet_amount) AS bets,
        SUM(total_payout_amount) AS payouts,

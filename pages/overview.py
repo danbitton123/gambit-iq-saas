@@ -36,11 +36,11 @@ def render(ctx) -> None:
     metrics = ctx.query(metric_sql).iloc[0]
     previous = ctx.previous_query(metric_sql).iloc[0]
     kpis([
-        ("Total GGR", money(metrics.total_ggr), period_delta(metrics.total_ggr, previous.total_ggr)),
-        ("Active Players", f"{int(metrics.active):,}", period_delta(metrics.active, previous.active)),
-        ("Players at Churn Risk", f"{int(metrics.churn):,}", "ML watchlist"),
+        ("Observed Total GGR", money(metrics.total_ggr), period_delta(metrics.total_ggr, previous.total_ggr)),
+        ("Observed Active Players", f"{int(metrics.active):,}", period_delta(metrics.active, previous.active)),
+        ("Predicted Churn-Risk Players", f"{int(metrics.churn):,}", "ML watchlist"),
         ("Estimated Risk Exposure", money(metrics.protected), "Active high-risk players"),
-    ])
+    ], ctx)
     daily = ctx.query("""
         SELECT metric_date date,SUM(total_ggr) value FROM mart_executive_daily
         WHERE metric_date>=DATE(:start) AND metric_date<DATE(:end)

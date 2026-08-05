@@ -1,7 +1,7 @@
 # GAMBIT IQ — Official KPI Dictionary
 
-**Version:** 1.0  
-**Effective date:** 2026-08-04  
+**Version:** 1.1
+**Effective date:** 2026-08-05
 **Scope:** Casino live tables + sportsbook demo platform  
 **Currency:** USD  
 **Time convention:** UTC for storage and reporting until an operator timezone is configured
@@ -18,6 +18,8 @@ This document is the business source of truth for GAMBIT IQ. Dashboard labels, S
 - Casino GGR and sportsbook GGR may be shown separately; Total GGR is their sum.
 - Observed outcomes and model predictions must never share the same label. For example, **Retention D30** is observed, while **Predicted retention** is `1 − churn_probability`.
 - Country, channel, device and VIP filters are based on the player's current attributes in this MVP. Production should use slowly changing dimensions when historical attribution matters.
+- Dashboard KPI labels begin with **Observed**, **Estimated** or **Predicted** whenever the measurement class could otherwise be ambiguous.
+- Every KPI tooltip contains its definition, formula, source, selected reporting period, measurement status and latest matching source timestamp.
 
 ## KPI definitions
 
@@ -41,7 +43,7 @@ Total GGR      = Casino GGR + Sportsbook GGR
 
 **Owner:** Finance / Gaming Operations. **Refresh:** Daily. **Status:** Validated.
 
-### 2. Net Gaming Revenue — NGR
+### 2. Estimated Net Gaming Revenue — Estimated NGR
 
 **Business question:** What gaming revenue remains after direct gaming deductions?
 
@@ -52,7 +54,7 @@ NGR = GGR − bonuses consumed − gaming taxes − payment processing fees
       − jackpot contributions − chargebacks ± approved adjustments
 ```
 
-**Current MVP implementation:** `GGR − approved processing fees − 6.5% bonus provision − 9.5% gaming-tax provision`.
+**Current MVP label and implementation:** **Estimated NGR** = `GGR − approved processing fees − 6.5% bonus provision − 9.5% gaming-tax provision`.
 
 **Important limitation:** The MVP has no bonus ledger, tax table, jackpot ledger, chargeback table or adjustment ledger. The displayed NGR is therefore a **demo estimate**, not an accounting KPI. Production validation requires these sources.
 
@@ -96,7 +98,7 @@ Declined, pending and reversed deposits are excluded. A returning depositor can 
 
 **Owner:** Growth / Finance. **Refresh:** Daily. **Status:** Validated.
 
-### 6. FTD Conversion D30
+### 6. Observed FTD Conversion D30
 
 **Business question:** What share of mature new registrations completed an approved first deposit within 30 days?
 
@@ -105,9 +107,9 @@ FTD Conversion D30 = registrations with FTD between registration and registratio
                      / registrations eligible for a complete 30-day observation window
 ```
 
-Denominator: players registered in the selected acquisition cohort with `registration_date <= as_of_date − 30 days`. Report immature cohorts separately, never as failures.
+Denominator: players registered in the selected acquisition cohort with `registration_date <= as_of_date − 30 days`. The dashboard now excludes immature registrations from both numerator and denominator; they are never treated as failures.
 
-**Owner:** Growth. **Refresh:** Daily by registration cohort. **Status:** Validated definition; dashboard query requires alignment.
+**Owner:** Growth. **Refresh:** Daily by registration cohort. **Status:** Validated and aligned in dashboard.
 
 ### 7. Average Deposit
 
@@ -121,7 +123,7 @@ This is not average deposit per depositor. If that metric is required, label it 
 
 **Owner:** Payments / Finance. **Refresh:** Daily. **Status:** Validated.
 
-### 8. Retention D30
+### 8. Observed Retention D30
 
 **Business question:** What share of activated players returned to play around their 30th day?
 
@@ -133,7 +135,7 @@ Retention D30 = Retained D30 / Eligible cohort
 
 The seven-day window reduces time-zone and sparse-activity noise. Registration-based retention may be reported separately but must be labelled explicitly.
 
-**Owner:** Product / CRM. **Refresh:** Daily by activation cohort. **Status:** Validated definition; dashboard query requires alignment.
+**Owner:** Product / CRM. **Refresh:** Daily by activation cohort. **Status:** Validated and aligned in dashboard.
 
 ### 9. Actual RTP
 
@@ -147,7 +149,7 @@ Compute at the requested aggregate grain using ratio of sums. Never average sess
 
 **Owner:** Casino Operations. **Refresh:** Daily, with minimum sample-size monitoring. **Status:** Validated.
 
-### 10. RTP Variance
+### 10. Observed RTP Variance
 
 **Business question:** How far is observed payout behavior from the game's theoretical RTP?
 
@@ -161,9 +163,12 @@ Positive variance means players received more than theoretical expectation and o
 Weighted theoretical RTP = SUM(bets × game theoretical RTP) / SUM(bets)
 ```
 
-Always display sample size and wager volume; a variance is not automatically an anomaly.
+Always display sample size and wager volume; a variance is not automatically an anomaly. Dashboard tables use a signed percentage-point display and an interpretation column:
 
-**Owner:** Casino Operations / Risk. **Refresh:** Daily. **Status:** Validated; current dashboard sign requires alignment.
+- positive: player-favourable; players received more than theoretical and operator margin was lower;
+- negative: operator-favourable; players received less than theoretical and operator margin was higher.
+
+**Owner:** Casino Operations / Risk. **Refresh:** Daily. **Status:** Validated and aligned in dashboard.
 
 ### 11. Churn Probability
 
@@ -178,16 +183,16 @@ The current synthetic model uses a 35-day outcome window and a broader registere
 
 **Owner:** Data Science / CRM. **Refresh:** Daily or weekly. **Status:** Demo model — alignment required.
 
-### 12. Predicted LTV 90D
+### 12. Predicted LTV Proxy 90D
 
-**Business question:** What net contribution is a player expected to generate over the next 90 days?
+**Business question:** What positive GGR proxy is the player model expected to generate over the next 90 days?
 
 ```text
-Predicted LTV 90D = expected 90-day NGR
-                    − expected player-specific variable servicing costs
+True production LTV = expected 90-day NGR
+                      − expected player-specific variable servicing costs
 ```
 
-It is a currency prediction, not a probability. The current MVP target extrapolates positive future GGR from 35 days to 90 days and therefore represents a **GGR proxy**, not true net LTV.
+It is a currency prediction, not a probability. The current MVP target extrapolates positive future GGR from 35 days to 90 days and is therefore labelled **Predicted LTV Proxy 90D**, not true net LTV.
 
 **Owner:** Data Science / Finance / CRM. **Refresh:** Weekly. **Status:** Demo proxy — new target sources required.
 
@@ -226,13 +231,14 @@ This score is not a diagnosis and must never be optimized for revenue. The MVP u
 7. Dashboard labels include `Observed`, `Predicted` or `Estimated` where ambiguity is possible.
 8. Every production data mart includes `metric_date`, `operator_id`, `currency`, `updated_at` and definition version.
 
-## Required dashboard corrections
+## Dashboard alignment completed in version 1.1
 
-- Replace the current acquisition conversion with cohort-based **FTD Conversion D30**.
-- Replace modelled `1 − churn probability` labelled as retention with observed **Retention D30**.
-- Reverse the current casino variance calculation to `Actual RTP − Theoretical RTP`.
-- Label current NGR as **Estimated NGR** until deduction ledgers exist.
-- Label current LTV as **Predicted 90D GGR Proxy** until true NGR and servicing costs exist.
-- Label fraud and RG outputs as **risk scores for review**, not confirmed outcomes.
+- Acquisition uses mature registration cohorts for **Observed FTD Conversion D30**.
+- Player Intelligence calculates **Observed Retention D30** from return activity on days 30–36.
+- Casino variance uses and explains `Actual RTP − Theoretical RTP`.
+- Provisional net revenue is labelled **Estimated NGR**.
+- Modelled player value is labelled **Predicted LTV Proxy 90D**.
+- Fraud and RG outputs are labelled as predicted review scores, not confirmed outcomes.
+- Every KPI card exposes governed metadata through contextual help.
 
 The executable SQL definitions are maintained in `sql/kpi_reference.sql`.

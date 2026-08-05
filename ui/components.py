@@ -6,12 +6,20 @@ import re
 import pandas as pd
 import streamlit as st
 
+from ui.kpi_governance import kpi_help
 
-def kpis(items: list[tuple[str, str, str | None]], columns: int | None = None) -> None:
+
+def kpis(items: list[tuple[str, str, str | None]], ctx, columns: int | None = None) -> None:
     cols = st.columns(columns or len(items))
     for col, (label, value, delta) in zip(cols, items):
         is_comparison = bool(delta and re.match(r"^[+\-−]?\d", str(delta)))
-        col.metric(label, value, delta, delta_color="normal" if is_comparison else "off")
+        col.metric(
+            label,
+            value,
+            delta,
+            delta_color="normal" if is_comparison else "off",
+            help=kpi_help(label, ctx.period_label, ctx.last_updated_label()),
+        )
 
 
 def insight(title: str, body: str, impact: str = "", risk: bool = False) -> None:

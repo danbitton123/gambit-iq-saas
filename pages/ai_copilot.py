@@ -12,8 +12,8 @@ from ui.theme import page_header
 
 QUESTIONS = {
     "Why is Roulette GGR declining?": "Roulette GGR is forecast to soften because VIP wager volume has decreased while RTP variance moved above its expected band. The result should be reviewed against sample size before action.",
-    "Which players have the highest churn-adjusted value?": "The highest opportunity is concentrated in Gold and Platinum players with predicted LTV above $1,200 and churn probability between 60% and 80%. Players with elevated RG risk are excluded.",
-    "Which acquisition sources should we scale?": "Organic and Google currently combine the strongest predicted LTV, retention and quality-adjusted ROAS. Affiliate Nova should remain capped until fraud-risk indicators improve.",
+    "Which players have the highest churn-adjusted value?": "The highest opportunity is concentrated in Gold and Platinum players with predicted LTV proxy 90D above $1,200 and churn probability between 60% and 80%. Players with elevated RG risk are excluded.",
+    "Which acquisition sources should we scale?": "Organic and Google currently combine the strongest predicted LTV proxy, predicted retention proxy and quality-adjusted ROAS proxy. Validate these model outputs before changing spend.",
     "Where are financial anomalies increasing?": "Withdrawal velocity and Mastercard declines are the two strongest anomalies. Reconciliation remains inside the monitoring tolerance but requires daily review.",
 }
 
@@ -25,12 +25,12 @@ def render(ctx) -> None:
     selected_days = max((ctx.end.normalize() - ctx.start.normalize()).days + 1, 1)
     projected_30d = total_ggr / selected_days * 30
     kpis([
-        ("Run-rate GGR 30D", money(projected_30d), "Selected-period daily rate × 30"),
-        ("Predicted Value at Risk", money(risk_revenue), "LTV of active players ≥70% churn"),
-        ("Modelled Opportunities", money(opportunities), "8% of eligible predicted LTV"),
-        ("Model Confidence", pct(accuracy), "Monitored daily"),
-        ("Decision Mode", "Human review", "No automated execution"),
-    ])
+        ("Estimated Run-rate GGR 30D", money(projected_30d), "Selected-period daily rate × 30"),
+        ("Predicted Value at Risk", money(risk_revenue), "LTV proxy of active players ≥70% churn"),
+        ("Estimated Modelled Opportunities", money(opportunities), "8% of eligible LTV proxy"),
+        ("Predicted Model Confidence", pct(accuracy), "Monitored daily"),
+        ("Observed Decision Mode", "Human review", "No automated execution"),
+    ],ctx)
     left, center, right = st.columns([1, 2.35, 1.1])
     with left:
         st.markdown("#### Conversation history")
@@ -79,6 +79,6 @@ def render(ctx) -> None:
         retention = c.slider("Retention uplift (%)", 0, 15, 5)
         projected = total_ggr * (1 + bonus * .0015 + spend * .0028 + retention * .006)
         waterfall = pd.DataFrame({"Driver": ["Current", "Bonus", "Acquisition", "Retention", "Projected"], "Value": [total_ggr, total_ggr * bonus * .0015, total_ggr * spend * .0028, total_ggr * retention * .006, projected]})
-        fig = px.bar(waterfall, x="Driver", y="Value", color="Driver", title=f"PROJECTED NGR · {money(projected)}", color_discrete_sequence=[COLORS["cyan"], COLORS["gold"], "#8b76ff", COLORS["green"], COLORS["green"]])
+        fig = px.bar(waterfall, x="Driver", y="Value", color="Driver", title=f"ESTIMATED GGR SCENARIO · {money(projected)}", color_discrete_sequence=[COLORS["cyan"], COLORS["gold"], "#8b76ff", COLORS["green"], COLORS["green"]])
         chart(polish(fig, 300, False),waterfall,explanation="Interactive scenario arithmetic is illustrative and does not represent an ML prediction or approved budget plan.")
     st.caption("AI outputs are decision support. Business owners must review recommendations, player-protection rules and local regulatory requirements before action.")
