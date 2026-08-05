@@ -22,6 +22,8 @@ from ui.states import (
     validate_filters,
 )
 from ui.theme import apply_theme
+from ui.access import logout, render_onboarding, render_workspace_manager, repository_path, require_user
+from data.tenant import tenant_has_data
 
 
 ROOT = Path(__file__).resolve().parent
@@ -39,7 +41,7 @@ def _reference() -> str:
     return uuid4().hex[:8].upper()
 
 
-def main() -> None:
+def main(user) -> None:
     # Streamlit renders this native logo above the navigation tree, including on mobile.
     st.logo(str(ROOT / "assets/gambit_iq_logo.svg"), size="large")
 
@@ -70,13 +72,18 @@ def main() -> None:
     design = st.sidebar.segmented_control(
         "Design", ["Dark", "Light"], default="Dark", key="design_mode", width="stretch"
     ) or "Dark"
-    apply_theme(design)
+    st.sidebar.markdown(
+        f"<div class='account-card'><span class='material-symbols-rounded'>account_circle</span>"
+        f"<div><strong>{user.display_name}</strong><small>{user.email}</small></div></div>", unsafe_allow_html=True,
+    )
+    if st.sidebar.button("Sign out", icon=":material/logout:", width="stretch"):
+        logout(user)
     st.sidebar.markdown(f"**{OPERATOR}**")
     st.sidebar.caption(APP_TAGLINE)
     st.sidebar.divider()
 
     with st.spinner("Loading governed data…"):
-        repo = get_repository()
+        repo = get_repository(repository_path(user))
         min_ts, max_ts = repo.date_bounds()
         countries = repo.countries()
 
@@ -108,6 +115,7 @@ def main() -> None:
     st.sidebar.markdown("<div class='live-pill'><span class='live-dot'></span> Connected</div>", unsafe_allow_html=True)
     st.sidebar.caption("Demo environment · Synthetic data only")
     st.sidebar.caption("Use the ◀ control above to collapse the sidebar")
+    render_workspace_manager(user)
 
     latest = repo.latest_event()
     if latest is not None:
@@ -124,8 +132,19 @@ def main() -> None:
         navigation.run()
 
 
+def application() -> None:
+    apply_theme(st.session_state.get("design_mode", "Dark"))
+    user = require_user()
+    if user is None:
+        return
+    if user.user_id != "demo" and not tenant_has_data(user.user_id):
+        render_onboarding(user)
+        return
+    main(user)
+
+
 try:
-    main()
+    application()
 except DataConnectionError:
     reference = _reference()
     LOGGER.exception("Data connection failure [%s]", reference)

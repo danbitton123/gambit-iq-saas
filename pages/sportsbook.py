@@ -14,7 +14,7 @@ def render(ctx)->None:
     page_header("SPORTSBOOK CONTROL ROOM","Margin, exposure and live trading intelligence","Sportsbook")
     metric_sql="""SELECT COALESCE(SUM(stake),0) handle,COALESCE(SUM(payout),0) payout,COALESCE(SUM(sportsbook_ggr),0) ggr,COALESCE(SUM(is_live),0) live,COALESCE(SUM(CASE WHEN sportsbook_ggr<0 THEN -sportsbook_ggr ELSE 0 END),0) exposure FROM v_sports_bets_enriched WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country)"""
     m=ctx.query(metric_sql).iloc[0]; previous=ctx.previous_query(metric_sql).iloc[0]
-    kpis([("Observed Sportsbook GGR",money(m.ggr),period_delta(m.ggr,previous.ggr)),("Observed Handle",money(m.handle),period_delta(m.handle,previous.handle)),("Observed Hold",pct(m.ggr/m.handle if m.handle else 0,2),"Observed GGR / handle"),("Observed Realized Downside",money(m.exposure),"Losses on settled bets"),("Observed Live Bets",f"{int(m.live):,}",period_delta(m.live,previous.live))],ctx)
+    kpis([("Observed Sportsbook GGR",money(m.ggr),period_delta(m.ggr,previous.ggr)),("Observed Handle",money(m.handle),period_delta(m.handle,previous.handle)),("Observed Hold",pct(m.ggr/m.handle if m.handle else None,2),"Observed GGR / handle"),("Observed Realized Downside",money(m.exposure),"Losses on settled bets"),("Observed Live Bets",f"{int(m.live):,}",period_delta(m.live,previous.live))],ctx)
     daily=ctx.query("""SELECT DATE(bet_date) date,sport,SUM(stake) Exposure,SUM(sportsbook_ggr) GGR FROM v_sports_bets_enriched WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country) GROUP BY DATE(bet_date),sport ORDER BY date""");daily.date=pd.to_datetime(daily.date)
     if daily.empty:
         empty_state("No sportsbook activity matches these filters")

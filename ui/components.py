@@ -36,7 +36,7 @@ def insight(title: str, body: str, impact: str = "", risk: bool = False) -> None
 
 def money(value: float, compact: bool = True) -> str:
     if value is None or pd.isna(value):
-        return "—"
+        return "Missing data"
     sign = "-" if value < 0 else ""
     value = abs(value)
     if compact and value >= 1_000_000:
@@ -48,13 +48,13 @@ def money(value: float, compact: bool = True) -> str:
 
 def pct(value: float, digits: int = 1) -> str:
     if value is None or pd.isna(value):
-        return "—"
+        return "Missing data"
     return f"{value * 100:.{digits}f}%"
 
 
 def number(value: float, digits: int = 0) -> str:
     if value is None or pd.isna(value):
-        return "—"
+        return "Missing data"
     return f"{value:,.{digits}f}"
 
 
