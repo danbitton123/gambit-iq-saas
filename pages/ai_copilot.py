@@ -7,6 +7,8 @@ import streamlit as st
 from config import COLORS
 from data.copilot import GovernedCopilot, SUGGESTED_QUESTIONS, approved_catalog
 from data.decision_engine import DecisionAlert, DecisionEngine, RULE_CATALOG
+from queries.ai_copilot import anomalies as anomalies_query
+from queries.ai_copilot import forecast_backtest, ml_metrics, next_best_action_summary
 from ui.charts import polish
 from ui.components import chart, data_table, kpis, money, pct
 from ui.theme import page_header
@@ -178,15 +180,10 @@ def _alert_card(alert: DecisionAlert) -> None:
 
 
 def _render_ml_lab(ctx) -> None:
-    metrics = ctx.repo.query("""SELECT model_name,horizon_days,split,metric_name,metric_value,model_version,measured_at
-        FROM model_metrics_v2 ORDER BY model_name,split,metric_name""")
-    forecasts = ctx.query("""SELECT metric,forecast_date,actual_value,predicted_value,lower_bound,upper_bound,split
-        FROM forecast_backtest WHERE forecast_date>=DATE(:start) AND forecast_date<DATE(:end) ORDER BY forecast_date""")
-    anomalies = ctx.query("""SELECT detected_date,metric,current_value,usual_value,anomaly_score,severity,method
-        FROM ml_anomalies WHERE detected_date>=DATE(:start) AND detected_date<DATE(:end)
-        ORDER BY anomaly_score DESC""")
-    actions = ctx.repo.query("""SELECT recommended_action,COUNT(*) players,SUM(estimated_value_at_stake) value_at_stake,
-        AVG(action_confidence) confidence FROM next_best_actions GROUP BY recommended_action ORDER BY value_at_stake DESC""")
+    metrics = ml_metrics.run(ctx)
+    forecasts = forecast_backtest.run(ctx)
+    anomalies = anomalies_query.run(ctx)
+    actions = next_best_action_summary.run(ctx)
 
     test_metrics = metrics[metrics.split.eq("test")]
     churn_auc = test_metrics[(test_metrics.model_name.eq("churn_30d")) & (test_metrics.metric_name.eq("roc_auc"))]

@@ -5,8 +5,9 @@ import sqlite3
 import pandas as pd
 
 from config import DB_PATH
-from data.kpi_queries import OBSERVED_FTD_CONVERSION_D30_SQL, OBSERVED_RETENTION_D30_SQL
 from data.repository import SQLContext, SQLRepository
+from queries.acquisition import ftd_conversion_d30
+from queries.player_intelligence import retention_d30
 from ui.kpi_governance import KPI_REGISTRY, kpi_help
 
 
@@ -16,8 +17,8 @@ def _context() -> SQLContext:
 
 def test_observed_d30_kpis_use_mature_cohorts_and_real_activity():
     ctx = _context()
-    ftd = ctx.query(OBSERVED_FTD_CONVERSION_D30_SQL).iloc[0]
-    retention = ctx.query(OBSERVED_RETENTION_D30_SQL).iloc[0]
+    ftd = ftd_conversion_d30.run(ctx)
+    retention = retention_d30.run(ctx)
 
     assert ftd.eligible_registrations > 0
     assert 0 <= ftd.converted_d30 <= ftd.eligible_registrations
