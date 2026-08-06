@@ -1,6 +1,6 @@
-# GAMBIT IQ — Local iGaming Intelligence SaaS
+# CasinoAI — Local iGaming Intelligence SaaS
 
-GAMBIT IQ is a local, portfolio-ready B2B analytics application for an online casino and sportsbook. Every dashboard KPI and business aggregation is calculated in SQL, Plotly renders the visual layer, and Python/scikit-learn trains the predictive models.
+CasinoAI is a local, portfolio-ready B2B analytics application for an online casino and sportsbook. Every dashboard KPI and business aggregation is calculated in SQL, Plotly renders the visual layer, and Python/scikit-learn trains the predictive models.
 
 > This project uses synthetic data only. It does not accept bets, manage wallets, determine game outcomes, or provide gambling services.
 
@@ -95,7 +95,7 @@ The warehouse now uses five explicit SQL layers: `raw_*`, `stg_*`, `dim_*/fact_*
 The business source of truth is documented in:
 
 - `docs/KPI_DICTIONARY.md` — definitions, formulas, owners, interpretation and limitations;
-- `docs/GAMBIT_IQ_KPI_Dictionary_v1.xlsx` — filterable business register and implementation tracker;
+- `docs/CASINOAI_KPI_Dictionary_v1.xlsx` — filterable business register and implementation tracker;
 - `sql/kpi_reference.sql` — executable reference queries.
 
 The dictionary distinguishes observed KPI, estimates and ML predictions. Dashboard definitions must not be changed without updating the dictionary version.
@@ -105,7 +105,7 @@ Delete `data/gambit_iq.db` before regenerating if you want to replace the existi
 ## Project structure
 
 ```text
-gambit_iq_streamlit/
+casino_ai_streamlit/
 ├── app.py
 ├── config.py
 ├── requirements.txt
@@ -124,7 +124,7 @@ gambit_iq_streamlit/
 ├── docs/
 │   ├── KPI_DICTIONARY.md
 │   ├── SQL_ARCHITECTURE.md
-│   └── GAMBIT_IQ_KPI_Dictionary_v1.xlsx
+│   └── CASINOAI_KPI_Dictionary_v1.xlsx
 ├── sql/
 │   ├── kpi_reference.sql
 │   └── warehouse/
@@ -158,7 +158,7 @@ gambit_iq_streamlit/
 
 The sidebar uses Streamlit's explicit `st.navigation` router with four governed groups: Executive, Customers, Performance and Operations. Global period and market filters are declared in the entrypoint so their state persists while users move between pages.
 
-The native Gambit IQ logo sits above navigation. A persistent **Dark / Light** design control adapts the application and Plotly charts without changing KPI semantics.
+The native CasinoAI logo sits above navigation. A persistent **Dark / Light** design control adapts the application and Plotly charts without changing KPI semantics.
 
 The UI explicitly handles loading, empty scopes, invalid filters, SQL failures, unavailable models, stale data and interrupted connections. A top-level safety boundary logs technical diagnostics with a reference code while showing users a concise recovery message—Python tracebacks are never rendered in the product UI.
 
@@ -186,13 +186,13 @@ AI Copilot supports open business questions through a governed semantic layer. N
 
 Each response includes the business conclusion, supporting rows, source tables, active filter scope, limitations and a confidence level. The interface provides suggested questions, session history, Markdown export and useful/not-useful feedback. Direct player identifiers are replaced with irreversible aliases, sensitive-data requests are refused before querying, and unrelated questions cannot access the warehouse.
 
-The full-page conversation supports follow-up questions and Markdown export. A floating **Ask Gambit AI** assistant follows every dashboard so a user can ask about the current page, KPI or chart without losing their place. When `OPENAI_API_KEY` is configured, the Responses API performs allow-listed intent classification and enriches the governed result conversationally; `store=false` is enforced. Without a key, deterministic governed routing remains fully operational.
+The full-page conversation supports follow-up questions and Markdown export. A floating **Ask CasinoAI** assistant follows every dashboard so a user can ask about the current page, KPI or chart without losing their place. When `OPENAI_API_KEY` is configured, the Responses API performs allow-listed intent classification and enriches the governed result conversationally; `store=false` is enforced. Without a key, deterministic governed routing remains fully operational.
 
 The semantic catalogue covers executive revenue, casino games and providers, sportsbook sports and events, payments, acquisition and anonymized player intelligence. Questions can request breakdowns by country, time, channel, game, provider, payment method, sport, event, VIP tier and other approved dimensions. New tables or columns still require an explicit reviewed catalogue entry and tests.
 
 ## Governed CSV import
 
-**Data Import Studio** provides the first operator-data connector for players, casino sessions, sportsbook bets, transactions, bonuses, campaigns and KYC/risk events. It automatically proposes a mapping from client headers to the Gambit IQ contract, then checks required columns, types, missing values, primary-key duplicates, valid ranges, domain values and cross-file player references.
+**Data Import Studio** provides the first operator-data connector for players, casino sessions, sportsbook bets, transactions, bonuses, campaigns and KYC/risk events. It automatically proposes a mapping from client headers to the CasinoAI contract, then checks required columns, types, missing values, primary-key duplicates, valid ranges, domain values and cross-file player references.
 
 Imports are staged in an isolated candidate warehouse. Activation is blocked while an error remains; after a successful warehouse build the candidate replaces the active database atomically and the previous version is archived. Every attempt records its files, row count, quality score, errors and warnings. Model outputs remain explicitly **Missing data** until imported history is sufficient to train and validate them.
 

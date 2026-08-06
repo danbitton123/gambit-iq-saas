@@ -1,4 +1,4 @@
-# Déployer GAMBIT IQ facilement
+# Déployer CasinoAI facilement
 
 ## Option 1 — Windows local
 
@@ -23,7 +23,7 @@ Puis ouvrir `http://localhost:8501`.
 
 L'ordinateur et l'iPhone doivent utiliser le même Wi-Fi.
 
-1. Lancer GAMBIT IQ sur l'ordinateur.
+1. Lancer CasinoAI sur l'ordinateur.
 2. Trouver l'adresse IPv4 de l'ordinateur avec `ipconfig` sous Windows ou `ifconfig` sous macOS/Linux.
 3. Dans Safari, ouvrir `http://ADRESSE_IP:8501`, par exemple `http://192.168.1.42:8501`.
 4. Si nécessaire, autoriser Python dans le pare-feu pour les réseaux privés.

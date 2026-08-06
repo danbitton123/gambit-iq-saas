@@ -8,9 +8,9 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 
-APP_NAME = "GAMBIT IQ"
+APP_NAME = "CasinoAI"
 APP_TAGLINE = "Revenue, Risk & Player Intelligence"
-OPERATOR = os.getenv("GAMBIT_OPERATOR", "Gambit Demo Casino")
+OPERATOR = os.getenv("GAMBIT_OPERATOR", "Northstar Bay Casino")
 CURRENCY = os.getenv("GAMBIT_CURRENCY", "USD")
 DB_PATH = ROOT / "data" / "gambit_iq.db"
 

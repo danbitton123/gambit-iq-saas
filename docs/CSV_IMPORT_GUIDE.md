@@ -1,4 +1,4 @@
-# Gambit IQ CSV & Excel pilot guide
+# CasinoAI CSV & Excel pilot guide
 
 Data Import Studio accepts UTF-8 CSV files and Excel workbooks (`.xlsx`/`.xls`) up to 50 MB. Comma, semicolon, tab and pipe delimiters are detected automatically for CSV. An Excel workbook can hold one table per named sheet (`players`, `casino_sessions`, ...) — each sheet is treated exactly like its own file — or a single sheet, in which case the filename drives detection instead. Upload related files together so referential checks can be performed before activation.
 

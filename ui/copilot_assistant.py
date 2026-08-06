@@ -63,7 +63,7 @@ def _submit_question(ctx, page: str, question: str) -> None:
 def render_floating_assistant(ctx, page: str) -> None:
     st.session_state.setdefault("floating_copilot_history", [])
     with st.container(key="floating_ai_assistant"):
-        with st.popover("Ask Gambit AI", icon=":material/auto_awesome:", width="stretch"):
+        with st.popover("Ask CasinoAI", icon=":material/auto_awesome:", width="stretch"):
             mode = "Conversational AI" if os.getenv("OPENAI_API_KEY") else "Governed analytics"
             st.markdown(
                 f"<div class='floating-ai-head'><span class='material-symbols-rounded'>neurology</span>"

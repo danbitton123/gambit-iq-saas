@@ -30,7 +30,7 @@ LOGGER = logging.getLogger(__name__)
 
 st.set_page_config(
     page_title=f"{APP_NAME} · Operator Intelligence",
-    page_icon="♠",
+    page_icon="🎰",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -42,7 +42,7 @@ def _reference() -> str:
 
 def main() -> None:
     # Streamlit renders this native logo above the navigation tree, including on mobile.
-    st.logo(str(ROOT / "assets/gambit_iq_logo.svg"), size="large")
+    st.logo(str(ROOT / "assets/casino_ai_logo.svg"), size="large", icon_image=str(ROOT / "assets/casino_ai_icon.svg"))
 
     navigation = st.navigation(
         {

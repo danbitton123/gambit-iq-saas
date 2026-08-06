@@ -1,4 +1,4 @@
-"""Machine-learning training and scoring for GAMBIT IQ, one project per KPI.
+"""Machine-learning training and scoring for CasinoAI, one project per KPI.
 
 - ml.churn             — churn probability (7/14/30-day horizons)
 - ml.ltv               — remaining lifetime value (30/90/180-day horizons)

@@ -1,4 +1,4 @@
-# GAMBIT IQ — Free Layered SQL Architecture
+# CasinoAI — Free Layered SQL Architecture
 
 **Architecture version:** 3.0  
 **Database:** SQLite 3  
