@@ -53,6 +53,11 @@ def F(kind: str, required: bool = True, *aliases: str) -> FieldSpec:
 
 
 CONTRACTS: dict[str, DataContract] = {
+    "games": DataContract("Games", "game_id", {
+        "game_id": F("text", True, "gameid"), "game_name": F("text", True, "name", "title"),
+        "game_family": F("text", False, "category", "game_type"),
+        "theoretical_rtp": F("number", False, "rtp", "expected_rtp"), "provider": F("text", False, "supplier", "vendor"),
+    }),
     "players": DataContract("Players", "player_id", {
         "player_id": F("text", True, "playerid", "customer_id", "user_id"),
         "registration_date": F("datetime", True, "registered_at", "signup_date", "created_at"),
@@ -199,6 +204,9 @@ def validate_frame(dataset: str, source: pd.DataFrame, mapping: dict[str, str | 
     for field in numeric_nonnegative:
         if field in mapped and (pd.to_numeric(mapped[field],errors="coerce")<0).any():
             issues.append(QualityIssue("ERROR",dataset,field,None,"INVALID_RANGE",f"'{field}' cannot be negative."))
+    if dataset == "games":
+        if mapped.theoretical_rtp.notna().any() and (~mapped.theoretical_rtp.between(0,1)).any(): issues.append(QualityIssue("ERROR",dataset,"theoretical_rtp",None,"INVALID_RANGE","RTP must be between 0 and 1."))
+        mapped["theoretical_rtp"] = mapped.theoretical_rtp.fillna(.96)
     if dataset == "casino_sessions":
         mapped["casino_ggr"] = mapped.casino_ggr.fillna(mapped.total_bet_amount-mapped.total_payout_amount)
         mapped["duration_minutes"] = mapped.duration_minutes.fillna(0); mapped["bet_count"] = mapped.bet_count.fillna(0)
@@ -239,6 +247,10 @@ def cross_validate(frames: dict[str, pd.DataFrame]) -> list[QualityIssue]:
     if bonuses is not None and not bonuses.empty and "campaign_id" in bonuses and campaigns:
         values = bonuses.campaign_id.dropna().astype(str); orphan_count = int((~values.isin(campaigns)).sum())
         if orphan_count: issues.append(QualityIssue("WARNING","bonuses","campaign_id",None,"ORPHAN_CAMPAIGN",f"{orphan_count:,} bonuses reference unknown campaigns."))
+    games = frames.get("games"); sessions = frames.get("casino_sessions")
+    if games is not None and not games.empty and sessions is not None and not sessions.empty and "game_id" in sessions:
+        known_games = set(games.game_id.dropna().astype(str)); orphan_count = int((~sessions.game_id.astype(str).isin(known_games)).sum())
+        if orphan_count: issues.append(QualityIssue("ERROR","casino_sessions","game_id",None,"ORPHAN_GAME",f"{orphan_count:,} sessions reference games absent from games.csv."))
     return issues
 
 
@@ -257,6 +269,38 @@ def _fallback_scores(players: pd.DataFrame, scored_at: str) -> pd.DataFrame:
     for field in ["predicted_ltv_90d","churn_probability","churn_probability_7d","churn_probability_14d","churn_probability_30d","observed_value","remaining_ltv_30d","remaining_ltv_90d","remaining_ltv_180d","predicted_total_ltv_30d","predicted_total_ltv_90d","predicted_total_ltv_180d","fraud_risk","rg_risk"]: result[field] = None
     result["recommended_action"]="Missing data"; result["model_confidence"]=None; result["last_session"]=None; result["session_count"]=0; result["lifetime_ggr"]=None; result["model_version"]="unavailable"; result["scored_at"]=scored_at
     return result
+
+
+def _train_real_models(candidate: Path, run_id: str) -> bool:
+    """Train real churn/LTV/forecast/anomaly/NBA models on freshly imported data.
+
+    ml.pipeline trains against fixed calendar snapshots (see ml/shared/features.py
+    TEMPORAL_WINDOWS and ml/shared/config.py SCORING_CUTOFF) rather than dates relative
+    to the imported file. Real training only runs when the imported history actually
+    covers those snapshots, so predictions are either genuinely modelled or explicitly
+    "Missing data" — never silently trained on an empty or partial window. Making the
+    windows relative to the imported data's own date range is tracked separately.
+    """
+    from ml.pipeline import train_and_score
+    from ml.shared.config import SCORING_CUTOFF
+    from ml.shared.features import TEMPORAL_WINDOWS
+
+    required_min = min(cutoff for windows in TEMPORAL_WINDOWS.values() for cutoff in windows["train"])
+    with sqlite3.connect(candidate) as conn:
+        row = conn.execute("""
+            SELECT MIN(d), MAX(d) FROM (
+              SELECT DATE(session_start) d FROM sessions
+              UNION ALL SELECT DATE(bet_date) FROM sports_bets
+              UNION ALL SELECT DATE(transaction_date) FROM transactions
+            )
+        """).fetchone()
+    if not row or row[0] is None or row[1] is None or row[0] > required_min or row[1] < SCORING_CUTOFF:
+        return False
+    try:
+        train_and_score(candidate, IMPORT_ROOT / f"models_{run_id}")
+        return True
+    except Exception:
+        return False
 
 
 def _registry() -> sqlite3.Connection:
@@ -284,7 +328,11 @@ def activate_import(frames: dict[str,pd.DataFrame], issues: list[QualityIssue], 
                     if column not in frame: frame[column]=pd.NA
                 frame[columns].to_sql(f"raw_{target}",conn,if_exists="replace",index=False)
             sessions=frames.get("casino_sessions",pd.DataFrame())
-            if sessions.empty: games=pd.DataFrame(columns=["game_id","game_name","game_family","theoretical_rtp","provider"])
+            games_file=frames.get("games")
+            if games_file is not None and not games_file.empty:
+                games=games_file[["game_id","game_name","game_family","theoretical_rtp","provider"]].drop_duplicates("game_id").copy()
+            elif sessions.empty:
+                games=pd.DataFrame(columns=["game_id","game_name","game_family","theoretical_rtp","provider"])
             else:
                 games=sessions[["game_id","game_name","game_family","theoretical_rtp","provider"]].drop_duplicates("game_id").copy()
                 games.game_name=games.game_name.mask(games.game_name.eq("Unknown"),games.game_id); games.theoretical_rtp=games.theoretical_rtp.fillna(.96)
@@ -292,15 +340,19 @@ def activate_import(frames: dict[str,pd.DataFrame], issues: list[QualityIssue], 
             for name in ("bonuses","campaigns","kyc_risk_events"):
                 frames.get(name,pd.DataFrame(columns=CONTRACTS[name].fields)).to_sql(f"raw_{name}",conn,if_exists="replace",index=False)
         build_warehouse(candidate,include_ml=False)
-        with sqlite3.connect(candidate) as conn:
-            _fallback_scores(frames["players"],now).to_sql("model_scores",conn,if_exists="replace",index=False)
-            pd.DataFrame(columns=["model_name","metric_name","metric_value","model_version","measured_at"]).to_sql("model_metrics",conn,if_exists="replace",index=False)
-            pd.DataFrame(columns=["model_name","horizon_days","split","metric_name","metric_value","model_version","measured_at"]).to_sql("model_metrics_v2",conn,if_exists="replace",index=False)
-            pd.DataFrame(columns=["metric","forecast_date","actual_value","predicted_value","lower_bound","upper_bound","split","model_version"]).to_sql("forecast_backtest",conn,if_exists="replace",index=False)
-            pd.DataFrame(columns=["forecast_date","predicted_revenue","lower_bound","upper_bound","model_version"]).to_sql("revenue_forecast",conn,if_exists="replace",index=False)
-            pd.DataFrame(columns=["detected_date","metric","current_value","usual_value","anomaly_score","severity","method","model_version","detected_at"]).to_sql("ml_anomalies",conn,if_exists="replace",index=False)
-            pd.DataFrame(columns=["player_id","recommended_action","reason","action_confidence","estimated_value_at_stake","model_version","scored_at"]).to_sql("next_best_actions",conn,if_exists="replace",index=False)
-            conn.execute("INSERT OR REPLACE INTO app_metadata VALUES('model_status','unavailable')"); conn.execute("INSERT OR REPLACE INTO app_metadata VALUES('import_run_id',?)",(run_id,)); conn.commit()
+        if not _train_real_models(candidate,run_id):
+            with sqlite3.connect(candidate) as conn:
+                _fallback_scores(frames["players"],now).to_sql("model_scores",conn,if_exists="replace",index=False)
+                pd.DataFrame(columns=["model_name","metric_name","metric_value","model_version","measured_at"]).to_sql("model_metrics",conn,if_exists="replace",index=False)
+                pd.DataFrame(columns=["model_name","horizon_days","split","metric_name","metric_value","model_version","measured_at"]).to_sql("model_metrics_v2",conn,if_exists="replace",index=False)
+                pd.DataFrame(columns=["metric","forecast_date","actual_value","predicted_value","lower_bound","upper_bound","split","model_version"]).to_sql("forecast_backtest",conn,if_exists="replace",index=False)
+                pd.DataFrame(columns=["forecast_date","predicted_revenue","lower_bound","upper_bound","model_version"]).to_sql("revenue_forecast",conn,if_exists="replace",index=False)
+                pd.DataFrame(columns=["detected_date","metric","current_value","usual_value","anomaly_score","severity","method","model_version","detected_at"]).to_sql("ml_anomalies",conn,if_exists="replace",index=False)
+                pd.DataFrame(columns=["player_id","recommended_action","reason","action_confidence","estimated_value_at_stake","model_version","scored_at"]).to_sql("next_best_actions",conn,if_exists="replace",index=False)
+                conn.execute("INSERT OR REPLACE INTO app_metadata VALUES('model_status','unavailable')"); conn.execute("INSERT OR REPLACE INTO app_metadata VALUES('import_run_id',?)",(run_id,)); conn.commit()
+        else:
+            with sqlite3.connect(candidate) as conn:
+                conn.execute("INSERT OR REPLACE INTO app_metadata VALUES('import_run_id',?)",(run_id,)); conn.commit()
         build_warehouse(candidate,include_ml=True)
         if ACTIVE_DB.exists():
             archive=IMPORT_ROOT/f"archive_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}.db"; os.replace(ACTIVE_DB,archive)
