@@ -8,13 +8,15 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from config import COLORS
+from queries.overview import (
+    daily_ggr_trend, market_share, payment_approval, performance_summary,
+    revenue_forecast, risk_bands, risk_summary, sportsbook_concentration,
+    worst_channel_roas, worst_rtp_variance,
+)
 from ui.charts import polish
 from ui.components import chart, money, pct, period_delta
 from ui.kpi_governance import kpi_help
 from ui.theme import page_header
-
-
-COST_SQL = "CASE p.channel WHEN 'Google' THEN 34 WHEN 'Meta' THEN 38 WHEN 'Organic' THEN 8 WHEN 'Affiliate Alpha' THEN 47 WHEN 'Affiliate Nova' THEN 61 WHEN 'Influencers' THEN 73 ELSE 40 END"
 
 
 def _num(value, default: float = 0.0) -> float:
@@ -79,31 +81,8 @@ def _recommendation(title: str, what: str, why: str, impact: str, action: str, c
 def render(ctx) -> None:
     page_header("COMMAND CENTER", "Performance, priorities, forecasts and decisions in one governed view", "Executive Intelligence")
 
-    metric_sql = """
-      WITH gaming AS (
-        SELECT COALESCE(SUM(total_ggr),0) ggr,COALESCE(SUM(estimated_ngr),0) ngr,
-               COALESCE(SUM(total_wagers),0) wagers,
-               COALESCE(SUM(casino_payouts+sports_payout),0) payouts
-        FROM mart_executive_daily WHERE metric_date>=DATE(:start) AND metric_date<DATE(:end)
-          AND (:country='All markets' OR country=:country)
-      ), active AS (
-        SELECT COUNT(DISTINCT a.player_id) players FROM int_player_activity_daily a
-        JOIN dim_player p USING(player_id) WHERE activity_date>=DATE(:start) AND activity_date<DATE(:end)
-          AND (:country='All markets' OR p.country=:country)
-      ), payments AS (
-        SELECT COALESCE(SUM(CASE WHEN transaction_status='Approved' AND transaction_type='Deposit' THEN amount ELSE 0 END),0) deposits
-        FROM v_transactions_enriched WHERE transaction_date>=:start AND transaction_date<:end
-          AND (:country='All markets' OR country=:country)
-      ), first_deposit AS (
-        SELECT player_id,MIN(transaction_date) ftd_date FROM transactions
-        WHERE transaction_type='Deposit' AND transaction_status='Approved' GROUP BY player_id
-      ), ftd AS (
-        SELECT COUNT(*) value FROM first_deposit f JOIN players p USING(player_id)
-        WHERE ftd_date>=:start AND ftd_date<:end AND (:country='All markets' OR p.country=:country)
-      ) SELECT gaming.*,active.players,payments.deposits,ftd.value ftd FROM gaming,active,payments,ftd
-    """
-    current = ctx.query(metric_sql).iloc[0]
-    previous = ctx.previous_query(metric_sql).iloc[0]
+    current = performance_summary.run(ctx)
+    previous = performance_summary.run_previous(ctx)
     days = max((ctx.end.normalize() - ctx.start.normalize()).days + 1, 1)
 
     targets = {
@@ -128,43 +107,23 @@ def render(ctx) -> None:
         {"label": "Observed Blended Hold", "value": pct(hold, 2), "delta": period_delta(hold, previous_hold), "progress": hold/targets["hold"], "objective": "7.0% hold"},
     ], ctx)
 
-    active_condition = """(:country='All markets' OR v.country=:country) AND EXISTS (
-      SELECT 1 FROM int_player_activity_daily a WHERE a.player_id=v.player_id
-      AND a.activity_date>=DATE(:start) AND a.activity_date<DATE(:end))"""
-    risk_sql = f"""SELECT COUNT(*) scored,AVG(churn_probability) churn_rate,
-      SUM(churn_probability>=.70) high_churn,SUM(CASE WHEN churn_probability>=.70 THEN predicted_ltv_90d ELSE 0 END) value_at_risk,
-      SUM(predicted_ltv_90d) future_ltv,AVG(model_confidence) confidence,
-      SUM(fraud_risk>=.55) payment_risk FROM v_player_scores v WHERE {active_condition}"""
-    risk_now = ctx.query(risk_sql).iloc[0]
-    risk_previous = ctx.previous_query(risk_sql).iloc[0]
+    risk_now = risk_summary.run(ctx)
+    risk_previous = risk_summary.run_previous(ctx)
     churn_change = (_num(risk_now.churn_rate) - _num(risk_previous.churn_rate))
 
-    game = ctx.query("""SELECT game_name,SUM(payouts)/NULLIF(SUM(bets),0) actual_rtp,
-      AVG(theoretical_rtp) theoretical_rtp,SUM(payouts)/NULLIF(SUM(bets),0)-AVG(theoretical_rtp) variance,SUM(bets) bets
-      FROM mart_game_performance_daily WHERE metric_date>=DATE(:start) AND metric_date<DATE(:end)
-      AND (:country='All markets' OR country=:country) GROUP BY game_name HAVING SUM(bets)>0
-      ORDER BY ABS(variance) DESC LIMIT 1""")
+    game = worst_rtp_variance.run(ctx)
     game_row = game.iloc[0] if not game.empty else None
     rtp_variance = abs(_num(game_row.variance)) if game_row is not None else 0
 
-    campaign = ctx.query(f"""SELECT p.channel,COUNT(*) players,SUM({COST_SQL}) cost,
-      SUM(v.predicted_ltv_90d) predicted_value,SUM(v.predicted_ltv_90d)/NULLIF(SUM({COST_SQL}),0) roas
-      FROM players p JOIN v_player_scores v USING(player_id)
-      WHERE p.registration_date>=:start AND p.registration_date<:end
-      AND (:country='All markets' OR p.country=:country) GROUP BY p.channel ORDER BY roas LIMIT 1""")
+    campaign = worst_channel_roas.run(ctx)
     campaign_row = campaign.iloc[0] if not campaign.empty else None
     worst_roas = _num(campaign_row.roas) if campaign_row is not None else 0
 
-    payment_sql = """SELECT AVG(transaction_status='Approved') approval FROM v_transactions_enriched
-      WHERE transaction_date>=:start AND transaction_date<:end AND transaction_type='Deposit'
-      AND (:country='All markets' OR country=:country)"""
-    payment = ctx.query(payment_sql).iloc[0]
-    previous_payment = ctx.previous_query(payment_sql).iloc[0]
+    payment = payment_approval.run(ctx)
+    previous_payment = payment_approval.run_previous(ctx)
     approval_drop = max(_num(previous_payment.approval) - _num(payment.approval), 0)
 
-    sportsbook = ctx.query("""WITH events AS (SELECT event_name,SUM(stake) handle FROM v_sports_bets_enriched
-      WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country) GROUP BY event_name)
-      SELECT event_name,handle,handle/(SELECT NULLIF(SUM(handle),0) FROM events) share FROM events ORDER BY handle DESC LIMIT 1""")
+    sportsbook = sportsbook_concentration.run(ctx)
     sportsbook_row = sportsbook.iloc[0] if not sportsbook.empty else None
     event_share = _num(sportsbook_row.share) if sportsbook_row is not None else 0
     revenue_change = _change(_num(current.ggr), _num(previous.ggr)) or 0
@@ -183,19 +142,12 @@ def render(ctx) -> None:
         with alert_cols[index % 3]:
             _alert_card(*args)
 
-    daily = ctx.query("""SELECT metric_date date,SUM(total_ggr) ggr FROM mart_executive_daily
-      WHERE metric_date>=DATE(:start) AND metric_date<DATE(:end)
-      AND (:country='All markets' OR country=:country) GROUP BY metric_date ORDER BY metric_date""")
+    daily = daily_ggr_trend.run(ctx)
     daily["date"] = pd.to_datetime(daily.date)
-    forecast = ctx.query("""SELECT forecast_date date,predicted_revenue forecast,lower_bound lower,upper_bound upper
-      FROM revenue_forecast ORDER BY forecast_date""")
+    forecast = revenue_forecast.run(ctx)
     forecast["date"] = pd.to_datetime(forecast.date)
-    market_share = 1.0
     if ctx.country != "All markets":
-        total_recent = ctx.repo.scalar("SELECT SUM(total_ggr) FROM mart_executive_daily WHERE metric_date>=(SELECT DATE(MAX(metric_date),'-29 days') FROM mart_executive_daily)") or 0
-        market_recent = ctx.repo.scalar("SELECT SUM(total_ggr) FROM mart_executive_daily WHERE country=:country AND metric_date>=(SELECT DATE(MAX(metric_date),'-29 days') FROM mart_executive_daily)", {"country": ctx.country}) or 0
-        market_share = max(float(market_recent) / float(total_recent), 0) if total_recent else 0
-        forecast[["forecast", "lower", "upper"]] *= market_share
+        forecast[["forecast", "lower", "upper"]] *= market_share.run(ctx)
     forecast_7 = forecast.head(7).forecast.sum()
     forecast_30 = forecast.head(30).forecast.sum()
     run_rate_target_30 = max(_num(current.ggr) / days * 30 * 1.05, 0)
@@ -227,13 +179,11 @@ def render(ctx) -> None:
         fig.update_layout(title="OBSERVED PERFORMANCE & 30-DAY FORECAST")
         chart(polish(fig, 390), explanation="Observed filtered GGR followed by the model forecast and prediction interval. Country views use the market's recent observed GGR share.")
     with right:
-        risk_bands = ctx.query(f"""SELECT CASE WHEN churn_probability<.40 THEN 'Stable' WHEN churn_probability<.70 THEN 'Watch' ELSE 'High risk' END segment,
-          COUNT(*) players,SUM(predicted_ltv_90d) ltv_proxy,AVG(model_confidence) confidence FROM v_player_scores v
-          WHERE {active_condition} GROUP BY segment""")
+        bands = risk_bands.run(ctx)
         color_map = {"Stable": COLORS["green"], "Watch": COLORS["gold"], "High risk": COLORS["red"]}
-        fig = px.bar(risk_bands, x="segment", y="ltv_proxy", color="segment", text="players", title="LTV PROXY AT RISK BY CHURN BAND", color_discrete_map=color_map)
+        fig = px.bar(bands, x="segment", y="ltv_proxy", color="segment", text="players", title="LTV PROXY AT RISK BY CHURN BAND", color_discrete_map=color_map)
         fig.update_traces(texttemplate="%{text:,} players", textposition="outside")
-        chart(polish(fig, 390, False), risk_bands, explanation="Predicted 90-day LTV Proxy of active players, segmented by predicted churn probability.")
+        chart(polish(fig, 390, False), bands, explanation="Predicted 90-day LTV Proxy of active players, segmented by predicted churn probability.")
 
     st.markdown("### Recommended decisions")
     st.caption("Decision support only. Every recommendation explains the signal, cause, impact, action and model confidence; execution remains human-approved.")

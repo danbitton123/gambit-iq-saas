@@ -8,11 +8,8 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from config import COLORS
-from data.kpi_queries import (
-    OBSERVED_RETENTION_D30_SQL,
-    PLAYER_BASE_SQL,
-    PLAYER_INTELLIGENCE_KPI_SUMMARY_SQL,
-    PLAYER_VIP_CANDIDATES_COUNT_SQL,
+from queries.player_intelligence import (
+    favorite_games, kpi_summary, player_base, player_timeline, retention_d30, vip_candidates,
 )
 from ui.charts import polish
 from ui.components import chart, data_table, empty_state, kpis, money, pct, period_delta
@@ -45,8 +42,8 @@ def _stable_number(player_id: str, salt: str, minimum: int, maximum: int) -> int
 
 
 def _prepare_players(ctx) -> pd.DataFrame:
-    players = ctx.query(PLAYER_BASE_SQL)
-    previous = ctx.previous_query(PLAYER_BASE_SQL)[["player_id", "sessions", "sports_bets", "casino_ggr", "sports_ggr"]]
+    players = player_base.run(ctx)
+    previous = player_base.run_previous(ctx)[["player_id", "sessions", "sports_bets", "casino_ggr", "sports_ggr"]]
     previous = previous.rename(columns={column: f"previous_{column}" for column in previous.columns if column != "player_id"})
     players = players.merge(previous, on="player_id", how="left").fillna({
         "previous_sessions": 0, "previous_sports_bets": 0, "previous_casino_ggr": 0, "previous_sports_ggr": 0,
@@ -98,24 +95,22 @@ def render(ctx) -> None:
         empty_state("No players match this market")
         return
 
-    retention = ctx.query(OBSERVED_RETENTION_D30_SQL).iloc[0]
-    kpi_summary = ctx.query(PLAYER_INTELLIGENCE_KPI_SUMMARY_SQL, {
-        "prev_start": ctx.previous_params["start"], "prev_end": ctx.previous_params["end"],
-    }).iloc[0]
+    retention = retention_d30.run(ctx)
+    summary = kpi_summary.run(ctx)
     # SQLite has no percentile function: the 90th-percentile threshold is computed once from
     # the SQL-sourced column already loaded above; the KPI count itself runs as SQL.
     # Matches the KPI_REGISTRY definition ("Active non-Platinum players above the demo value
     # threshold"): both the threshold and the count are scoped to that eligible pool.
     vip_pool = players[(players.activity > 0) & (players.vip_level != "Platinum")]
     vip_threshold = vip_pool.predicted_total_ltv_180d.quantile(.90) if not vip_pool.empty else float("inf")
-    vip_candidates = ctx.query(PLAYER_VIP_CANDIDATES_COUNT_SQL, {"threshold": vip_threshold}).iloc[0].vip_candidates
+    vip_count = vip_candidates.run(ctx, vip_threshold)
     kpis([
-        ("Observed Active Players", f"{int(kpi_summary.active_players):,}", period_delta(kpi_summary.active_players, kpi_summary.previous_active_players)),
-        ("Observed Lifetime GGR", money(kpi_summary.lifetime_ggr), "All players in selected market"),
-        ("Predicted Remaining LTV 90D", money(kpi_summary.remaining_ltv_90d), "Future value after the scoring date"),
-        ("Predicted High Churn Risk", f"{int(kpi_summary.high_churn_risk):,}", "Active players ≥70%"),
-        ("Predicted RG Interventions", f"{int(kpi_summary.rg_interventions):,}", "RG review threshold ≥55%"),
-        ("Predicted VIP Candidates", f"{int(vip_candidates):,}", "Top 10% predicted total LTV 180D"),
+        ("Observed Active Players", f"{int(summary.active_players):,}", period_delta(summary.active_players, summary.previous_active_players)),
+        ("Observed Lifetime GGR", money(summary.lifetime_ggr), "All players in selected market"),
+        ("Predicted Remaining LTV 90D", money(summary.remaining_ltv_90d), "Future value after the scoring date"),
+        ("Predicted High Churn Risk", f"{int(summary.high_churn_risk):,}", "Active players ≥70%"),
+        ("Predicted RG Interventions", f"{int(summary.rg_interventions):,}", "RG review threshold ≥55%"),
+        ("Predicted VIP Candidates", f"{int(vip_count):,}", "Top 10% predicted total LTV 180D"),
         ("Observed Retention D30", pct(retention.retention_d30), f"{int(retention.retained_players or 0):,} / {int(retention.eligible_players or 0):,} eligible"),
     ], ctx, columns=4)
 
@@ -195,8 +190,7 @@ def render(ctx) -> None:
         for col, fact in zip(cols * 2, facts):
             with col:
                 _profile_fact(*fact)
-        preferred = ctx.query("""SELECT game_name,COUNT(*) sessions,SUM(total_bet_amount) bets,SUM(casino_ggr) ggr
-          FROM v_sessions_enriched WHERE player_id=:player_id GROUP BY game_name ORDER BY sessions DESC LIMIT 5""", {"player_id": selected})
+        preferred = favorite_games.run(ctx, selected)
         fig = px.bar(preferred, x="sessions", y="game_name", orientation="h", color="ggr", title="FAVORITE CASINO GAMES", color_continuous_scale=[COLORS["red"], COLORS["gold"], COLORS["green"]])
         chart(polish(fig, 320, False), preferred, explanation="Lifetime casino sessions ranked by game; color represents observed GGR.")
     with risk_tab:
@@ -221,11 +215,7 @@ def render(ctx) -> None:
                 _profile_fact(fact[0], fact[1], "Decision-support indicator")
         st.info(f"Recommended action: {player.recommended_action}. Model confidence: {pct(player.model_confidence)}. Human review is required before intervention.")
     with timeline_tab:
-        timeline = ctx.query("""SELECT event_date,SUM(deposits) deposits,SUM(withdrawals) withdrawals,SUM(casino_ggr) casino_ggr,SUM(sports_ggr) sports_ggr,SUM(events) events FROM (
-          SELECT DATE(session_start) event_date,0 deposits,0 withdrawals,SUM(casino_ggr) casino_ggr,0 sports_ggr,COUNT(*) events FROM sessions WHERE player_id=:player_id GROUP BY DATE(session_start)
-          UNION ALL SELECT DATE(bet_date),0,0,0,SUM(sportsbook_ggr),COUNT(*) FROM sports_bets WHERE player_id=:player_id GROUP BY DATE(bet_date)
-          UNION ALL SELECT DATE(transaction_date),SUM(CASE WHEN transaction_status='Approved' AND transaction_type='Deposit' THEN amount ELSE 0 END),SUM(CASE WHEN transaction_status='Approved' AND transaction_type='Withdrawal' THEN amount ELSE 0 END),0,0,COUNT(*) FROM transactions WHERE player_id=:player_id GROUP BY DATE(transaction_date)
-        ) GROUP BY event_date ORDER BY event_date""", {"player_id": selected})
+        timeline = player_timeline.run(ctx, selected)
         timeline["event_date"] = pd.to_datetime(timeline.event_date)
         timeline["total_ggr"] = timeline.casino_ggr + timeline.sports_ggr
         fig = go.Figure()
