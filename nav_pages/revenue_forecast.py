@@ -1,5 +1,5 @@
 import streamlit as st
 
-from pages.forecast_recommendations import render
+from pages.revenue_forecast import render
 
 render(st.session_state["gambit_sql_context"])

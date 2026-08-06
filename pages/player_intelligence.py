@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
+from config import COLORS
 from pages.player_intelligence_shared import SEGMENT_ICONS, SEGMENTS, prepare_players
 from queries.player_intelligence import kpi_summary, retention_d30, vip_candidates
-from ui.components import data_table, empty_state, kpis, money, pct, period_delta
+from ui.charts import polish
+from ui.components import chart, data_table, empty_state, kpis, money, pct, period_delta
 from ui.theme import page_header
+
+MAX_SCATTER_POINTS = 1500
 
 
 def render(ctx) -> None:
     page_header("PLAYER INTELLIGENCE", "Portfolio value, segmentation and CRM-safe activation lists", "Customer Intelligence")
-    players = prepare_players(ctx)
+    with st.spinner("Scoring player portfolio…"):
+        players = prepare_players(ctx)
     if players.empty:
         empty_state("No players match this market")
         return
@@ -42,14 +48,37 @@ def render(ctx) -> None:
         with segment_cols[index % 4]:
             st.markdown(f"<div class='segment-tile'><div class='segment-icon material-symbols-rounded'>{SEGMENT_ICONS[row.segment]}</div><div><span>{row.segment}</span><strong>{row.players:,}</strong><small>Players · segments may overlap</small></div></div>", unsafe_allow_html=True)
 
-    st.markdown("### Segment export and portfolio")
-    st.caption("Open a player's full profile, risk gauges and activity timeline on the Player Profile page.")
     f1, f2 = st.columns([1.1, 1])
     with f1:
         segment_choice = st.selectbox("Business segment", SEGMENTS, key="player_360_segment")
     with f2:
         crm_safe = st.toggle("CRM-safe export only", value=True, help="Excludes fraud/RG review cases and players without verified KYC.")
     filtered = players if segment_choice == "All players" else players[players[segment_choice]]
+
+    st.markdown("### Analyze the portfolio")
+    st.caption("Open a player's full profile, risk gauges and activity timeline on the Player Profile page.")
+    c1, c2 = st.columns([1, 1.3])
+    with c1:
+        value_by_segment = pd.DataFrame({
+            "segment": SEGMENTS[1:],
+            "value_at_stake": [float(players.loc[players[name], "predicted_total_ltv_180d"].sum()) for name in SEGMENTS[1:]],
+        }).sort_values("value_at_stake")
+        fig = px.bar(value_by_segment, x="value_at_stake", y="segment", orientation="h", color="value_at_stake",
+                     title="PREDICTED VALUE AT STAKE BY SEGMENT", color_continuous_scale=[COLORS["cyan"], COLORS["gold"], COLORS["green"]])
+        fig.update_layout(coloraxis_showscale=False, xaxis_title="Predicted total LTV 180D")
+        chart(polish(fig, 380, False), value_by_segment, explanation="Sum of predicted total LTV 180D for players in each segment; segments may overlap.")
+    with c2:
+        sample = filtered if len(filtered) <= MAX_SCATTER_POINTS else filtered.sample(MAX_SCATTER_POINTS, random_state=7)
+        sample = sample.assign(bubble_size=sample.lifetime_ggr.clip(lower=0) + 1)
+        fig = px.scatter(
+            sample, x="churn_probability", y="predicted_total_ltv_180d", color="vip_level", size="bubble_size",
+            hover_data=["player_id"], title=f"RISK VS. VALUE · {segment_choice.upper()}",
+            color_discrete_sequence=[COLORS["red"], COLORS["gold"], COLORS["cyan"], COLORS["green"]],
+        )
+        fig.add_vline(x=.70, line_dash="dash", line_color=COLORS["red"], annotation_text="High churn risk")
+        fig.update_layout(xaxis_title="Predicted churn probability", xaxis_tickformat=".0%", yaxis_title="Predicted total LTV 180D")
+        chart(polish(fig, 380, False), sample, explanation=f"Each point is a player in “{segment_choice}”. Bubble size is observed lifetime GGR (floored at zero); players right of the line carry the highest churn risk." + (f" Showing a random sample of {MAX_SCATTER_POINTS:,}." if len(filtered) > MAX_SCATTER_POINTS else ""))
+
     export = filtered[filtered.crm_eligible] if crm_safe else filtered
     export_columns = ["player_id", "country", "vip_level", "rfm_segment", "segment_tags", "lifetime_ggr", "predicted_ltv_90d", "churn_probability", "recommended_action", "model_confidence"]
     st.download_button(

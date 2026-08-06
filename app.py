@@ -48,7 +48,7 @@ def main() -> None:
         {
             "Executive": [
                 st.Page("nav_pages/command_center.py", title="Command Center", icon=":material/dashboard:", url_path="command-center", default=True),
-                st.Page("nav_pages/forecast_recommendations.py", title="Forecast & Recommendations", icon=":material/insights:", url_path="forecast-recommendations"),
+                st.Page("nav_pages/revenue_forecast.py", title="Revenue Forecast", icon=":material/insights:", url_path="revenue-forecast"),
                 st.Page("nav_pages/ai_copilot.py", title="AI Copilot", icon=":material/psychology:", url_path="ai-copilot"),
             ],
             "Customers": [
