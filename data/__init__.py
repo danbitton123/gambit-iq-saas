@@ -1,2 +1,2 @@
-"""Data generation and repository helpers for GAMBIT IQ."""
+"""Data generation and repository helpers for CasinoAI."""
 

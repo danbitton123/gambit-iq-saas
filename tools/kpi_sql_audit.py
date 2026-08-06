@@ -1,6 +1,6 @@
 """Static audit: every KPI card rendered by pages/*.py must be traceable to a SQL query.
 
-GAMBIT IQ's stated architecture (README.md) is "every dashboard KPI ... is
+CasinoAI's stated architecture (README.md) is "every dashboard KPI ... is
 calculated in SQL". This module walks the AST of each page module and checks
 that every value shown in a `kpis([...])` / `_executive_kpis([...])` card
 depends — directly, or through simple arithmetic/attribute access/merges on

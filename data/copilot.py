@@ -208,7 +208,7 @@ class GovernedCopilot:
             client = OpenAI(api_key=api_key, timeout=8.0, max_retries=1)
             result = client.responses.create(
                 model=os.getenv("OPENAI_MODEL", "gpt-5.6"), store=False,
-                instructions=("You are Gambit IQ, a concise senior iGaming analyst. Answer only from the supplied "
+                instructions=("You are CasinoAI, a concise senior iGaming analyst. Answer only from the supplied "
                               "governed analysis. Never invent values, players, causes or actions. Clearly distinguish "
                               "observed, estimated and predicted evidence. Mention uncertainty and keep the response under 170 words."),
                 input=json.dumps({"question":question,"page":page_context,"scope":self.scope,"approved_answer":response.answer,
@@ -242,7 +242,7 @@ class GovernedCopilot:
         return tuple(f"{table} · global scope: {self.scope}" for table in tables)
 
     def _refusal(self, reason: str) -> CopilotResponse:
-        return CopilotResponse("refused", "Protected data boundary", reason, pd.DataFrame(), ("Gambit IQ data-access policy",), "No warehouse query was executed.", 1.0, True)
+        return CopilotResponse("refused", "Protected data boundary", reason, pd.DataFrame(), ("CasinoAI data-access policy",), "No warehouse query was executed.", 1.0, True)
 
     def _ngr_change(self) -> CopilotResponse:
         sql = """SELECT COALESCE(SUM(casino_ggr),0) casino_ggr,COALESCE(SUM(sports_ggr),0) sportsbook_ggr,

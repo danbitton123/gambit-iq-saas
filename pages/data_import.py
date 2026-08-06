@@ -90,7 +90,7 @@ def render(ctx) -> None:
                 severity=st.segmented_control("Issue severity",["All","ERROR","WARNING"],default="All",key="quality_severity")
                 view=issues if severity=="All" else issues[issues.severity.eq(severity)]
                 data_table(view)
-                st.download_button("Download quality report",issues.to_csv(index=False),"gambit_iq_quality_report.csv","text/csv",icon=":material/download:",width="stretch")
+                st.download_button("Download quality report",issues.to_csv(index=False),"casino_ai_quality_report.csv","text/csv",icon=":material/download:",width="stretch")
             st.markdown("#### Dataset coverage")
             coverage=pd.DataFrame([{"Dataset":CONTRACTS[name].label,"Rows":len(frame),"Columns":len(frame.columns)} for name,frame in result["frames"].items()])
             data_table(coverage)

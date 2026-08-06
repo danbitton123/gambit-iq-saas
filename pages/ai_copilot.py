@@ -122,7 +122,7 @@ def _render_copilot(ctx, alerts) -> None:
         for index, item in enumerate(history):
             _render_copilot_response(item, index)
         export = "\n\n---\n\n".join(_analysis_markdown(item) for item in reversed(history))
-        st.download_button("Download complete analysis", export, "gambit_iq_copilot_analysis.md", "text/markdown", icon=":material/download:", width="stretch")
+        st.download_button("Download complete analysis", export, "casino_ai_copilot_analysis.md", "text/markdown", icon=":material/download:", width="stretch")
 
     with st.expander("Available data domains and safety policy"):
         data_table(approved_catalog())

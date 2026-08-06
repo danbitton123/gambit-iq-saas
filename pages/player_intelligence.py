@@ -136,7 +136,7 @@ def render(ctx) -> None:
     export_columns = ["player_id", "country", "vip_level", "rfm_segment", "segment_tags", "lifetime_ggr", "predicted_ltv_90d", "churn_probability", "recommended_action", "model_confidence"]
     st.download_button(
         f"Export {len(export):,} players to CSV", export[export_columns].to_csv(index=False).encode("utf-8"),
-        file_name=f"gambit_iq_{segment_choice.lower().replace(' ', '_')}_crm.csv", mime="text/csv",
+        file_name=f"casino_ai_{segment_choice.lower().replace(' ', '_')}_crm.csv", mime="text/csv",
         disabled=export.empty, help="Simulated CRM activation list. No campaign is sent automatically.",
     )
     st.caption(f"{len(filtered):,} players in segment · {len(export):,} eligible for the current export guardrail.")

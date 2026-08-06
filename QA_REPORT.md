@@ -1,4 +1,4 @@
-# GAMBIT IQ — Rapport QA
+# CasinoAI — Rapport QA
 
 Date de validation : 5 août 2026
 

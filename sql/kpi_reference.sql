@@ -1,4 +1,4 @@
--- GAMBIT IQ KPI reference queries — Definition version 1.1
+-- CasinoAI KPI reference queries — Definition version 1.1
 -- Parameters use half-open intervals: :start inclusive, :end exclusive.
 
 -- 1–3. Total GGR, provisional NGR and GGR margin

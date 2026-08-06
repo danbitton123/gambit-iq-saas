@@ -1,4 +1,4 @@
-# GAMBIT IQ — Official KPI Dictionary
+# CasinoAI — Official KPI Dictionary
 
 **Version:** 1.1
 **Effective date:** 2026-08-05
@@ -6,7 +6,7 @@
 **Currency:** USD  
 **Time convention:** UTC for storage and reporting until an operator timezone is configured
 
-This document is the business source of truth for GAMBIT IQ. Dashboard labels, SQL marts, exports and model monitoring must use these definitions. A change to a definition requires a version update and approval from Data, Finance and the relevant business owner.
+This document is the business source of truth for CasinoAI. Dashboard labels, SQL marts, exports and model monitoring must use these definitions. A change to a definition requires a version update and approval from Data, Finance and the relevant business owner.
 
 ## Global conventions
 
