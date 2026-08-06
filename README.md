@@ -6,15 +6,17 @@ CasinoAI is a local, portfolio-ready B2B analytics application for an online cas
 
 ## Included pages
 
-1. **Command Center** — NGR, active players, forecast, risk and AI priorities.
-2. **Player Intelligence** — Player 360, predicted LTV, churn, cohorts and watchlists.
-3. **Casino Games** — GGR, bets, margin, actual/theoretical RTP and activity heatmap.
-4. **Sportsbook & Trading** — Handle, hold, exposure, sport profitability and live risk feed.
-5. **Acquisition** — FTD, CAC, predicted ROAS, affiliate quality and conversion funnel.
-6. **CRM Automation** — Dynamic segments, journey builder, next best action and experiments.
-7. **Revenue & Finance** — GGR-to-NGR waterfall, payments, cash flow and reconciliation.
-8. **Risk & Compliance** — Fraud, AML, KYC, responsible gaming and case management.
-9. **AI Copilot** — Explainable forecasts, model health, recommendations and scenarios.
+1. **Command Center** — NGR, active players and the six governed action-required signals, at a glance.
+2. **Forecast & Recommendations** — 7/30-day revenue forecast and explainable, accountable next actions.
+3. **Player Intelligence** — Portfolio KPIs, eight overlapping business segments and CRM-safe export.
+4. **Player Profile** — Individual player drill-down: value/cash, gaming behavior, risk gauges, timeline and CRM history.
+5. **Casino Games** — GGR, bets, margin, actual/theoretical RTP and activity heatmap.
+6. **Sportsbook & Trading** — Handle, hold, exposure, sport profitability and live risk feed.
+7. **Acquisition** — FTD, CAC, predicted ROAS, affiliate quality and conversion funnel.
+8. **CRM Automation** — Dynamic segments, journey builder, next best action and experiments.
+9. **Revenue & Finance** — GGR-to-NGR waterfall, payments, cash flow and reconciliation.
+10. **Risk & Compliance** — Fraud, AML, KYC, responsible gaming and case management.
+11. **AI Copilot** — Explainable forecasts, model health, recommendations and scenarios.
 
 ## Quick start
 
@@ -134,9 +136,17 @@ casino_ai_streamlit/
 │       ├── 40_intermediate.sql
 │       ├── 50_marts.sql
 │       └── 60_ml_marts.sql
+├── queries/                   # one folder per page, one file per KPI/query — pages call these, never inline SQL
+│   ├── overview/
+│   ├── player_intelligence/
+│   └── ... one package per page
 ├── pages/
-│   ├── overview.py
-│   ├── player_intelligence.py
+│   ├── overview.py                    # Command Center
+│   ├── overview_metrics.py            # shared derived metrics for Command Center + Forecast & Recommendations
+│   ├── forecast_recommendations.py
+│   ├── player_intelligence.py         # portfolio KPIs, segmentation, CRM export
+│   ├── player_intelligence_shared.py  # shared player-base prep for both player pages
+│   ├── player_profile.py              # individual player drill-down
 │   ├── casino.py
 │   ├── sportsbook.py
 │   ├── acquisition.py
@@ -146,6 +156,9 @@ casino_ai_streamlit/
 │   └── ai_copilot.py
 ├── nav_pages/
 │   ├── command_center.py
+│   ├── forecast_recommendations.py
+│   ├── player_intelligence.py
+│   ├── player_profile.py
 │   ├── ai_copilot.py
 │   └── ... page-route wrappers
 ├── ui/
@@ -162,9 +175,9 @@ The native CasinoAI logo sits above navigation. A persistent **Dark / Light** de
 
 The UI explicitly handles loading, empty scopes, invalid filters, SQL failures, unavailable models, stale data and interrupted connections. A top-level safety boundary logs technical diagnostics with a reference code while showing users a concise recovery message—Python tracebacks are never rendered in the product UI.
 
-The Command Center is organized as an executive decision flow: six governed performance KPIs with prior-period and objective progress, six data-driven action signals, a market-aware 7/30-day outlook, and explainable recommendations covering signal, cause, impact, action and confidence.
+The Command Center is the executive at-a-glance view: six governed performance KPIs with prior-period and objective progress, plus six data-driven action-required signals. Its market-aware 7/30-day forecast and explainable recommendations (signal, cause, impact, action, confidence) live on the dedicated **Forecast & Recommendations** page, so neither page is overloaded.
 
-Player 360 combines portfolio segmentation and individual drill-down: observed value/cash/gaming history, RFM, modelled churn/fraud/RG and future-value signals, responsible activation guardrails, eight overlapping business segments, a lifetime timeline and CSV export for simulated CRM activation. Campaign and bonus histories remain explicitly labelled demo simulations until those source ledgers are connected.
+Player Intelligence and Player Profile split the former single "Player 360" page in the same spirit: Player Intelligence covers portfolio segmentation (eight overlapping business segments), governed portfolio KPIs and CSV export for simulated CRM activation; Player Profile is the individual drill-down — observed value/cash/gaming history, RFM, modelled churn/fraud/RG and future-value signals, responsible activation guardrails and a lifetime timeline. Campaign and bonus histories remain explicitly labelled demo simulations until those source ledgers are connected.
 
 The AI Decision Engine evaluates ten auditable rules for revenue, RTP, acquisition, providers, payments, conversion, sportsbook exposure, revenue concentration, fraud and Responsible Gaming. Triggered alerts feed an operational recommendation register with accountable owner, impact, recovery potential, effort, priority, confidence, status and measured-result tracking.
 

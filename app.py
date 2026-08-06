@@ -48,10 +48,12 @@ def main() -> None:
         {
             "Executive": [
                 st.Page("nav_pages/command_center.py", title="Command Center", icon=":material/dashboard:", url_path="command-center", default=True),
+                st.Page("nav_pages/forecast_recommendations.py", title="Forecast & Recommendations", icon=":material/insights:", url_path="forecast-recommendations"),
                 st.Page("nav_pages/ai_copilot.py", title="AI Copilot", icon=":material/psychology:", url_path="ai-copilot"),
             ],
             "Customers": [
                 st.Page("nav_pages/player_intelligence.py", title="Player Intelligence", icon=":material/person_search:", url_path="player-intelligence"),
+                st.Page("nav_pages/player_profile.py", title="Player Profile", icon=":material/badge:", url_path="player-profile"),
                 st.Page("nav_pages/crm_automation.py", title="CRM Automation", icon=":material/campaign:", url_path="crm-automation"),
             ],
             "Performance": [

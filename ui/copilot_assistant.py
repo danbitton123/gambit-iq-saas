@@ -14,7 +14,9 @@ from ui.charts import PALETTE, polish
 
 PAGE_QUESTIONS = {
     "Command Center": ("What are the five priority actions?", "Explain this page", "Why did NGR change?"),
+    "Forecast & Recommendations": ("Why did NGR change?", "What are the five priority actions?", "Explain this page"),
     "Player Intelligence": ("Which VIP players need attention?", "How much value is at risk from churn?", "Explain this page"),
+    "Player Profile": ("Which VIP players need attention?", "Explain this page", "How much value is at risk from churn?"),
     "CRM Automation": ("How much value is at risk from churn?", "Which VIP players need attention?", "Explain this page"),
     "Casino": ("Show me casino performance", "Which games are underperforming?", "Explain this chart"),
     "Sportsbook": ("Show me sportsbook performance", "What should I focus on here?", "Explain this page"),
