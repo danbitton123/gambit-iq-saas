@@ -8,6 +8,8 @@ from dataclasses import dataclass, replace
 
 import pandas as pd
 
+from data.semantic_query import SemanticQueryEngine
+
 
 @dataclass(frozen=True)
 class CopilotResponse:
@@ -121,9 +123,14 @@ class GovernedCopilot:
             default_intent = PAGE_DEFAULT_INTENTS.get(page_context)
             intent = next((item for item in APPROVED_INTENTS if item.intent == default_intent), None)
         if intent is None:
+            semantic = SemanticQueryEngine(self.ctx).answer(question)
+            if semantic is not None:
+                chart = CopilotChart(semantic.chart_kind,semantic.chart_x,semantic.chart_y,semantic.title.upper(),"Generated from the same governed evidence cited in this response.") if semantic.chart_x and semantic.chart_kind != "table" else None
+                response = CopilotResponse("semantic_query",semantic.title,semantic.answer,semantic.evidence,semantic.sources,semantic.limitations,semantic.confidence,False,chart)
+                return self._conversational_answer(question,response,page_context)
             intent = self._model_route(question, page_context)
         if intent is None:
-            return self._refusal("This question is outside the approved analytical catalogue. Try a question about NGR, games, acquisition, churn, VIP risk, withdrawals, casino, sportsbook, payments or priority actions.")
+            return self._refusal("I could not map this question to the governed casino data model. Ask about revenue, players, games, acquisition, payments, risk, sportsbook or data quality, and specify a breakdown such as country, channel, game or month.")
         response = self._with_chart(getattr(self, intent.handler)())
         return self._conversational_answer(question, response, page_context)
 
@@ -353,4 +360,6 @@ class GovernedCopilot:
 
 
 def approved_catalog() -> pd.DataFrame:
-    return pd.DataFrame([{"Intent":item.intent,"Approved analysis":item.title,"What it answers":item.description} for item in APPROVED_INTENTS])
+    rows = [{"Intent":item.intent,"Approved analysis":item.title,"What it answers":item.description} for item in APPROVED_INTENTS]
+    rows.append({"Intent":"semantic_query","Approved analysis":"Open governed data analysis","What it answers":"Flexible read-only aggregations across allow-listed business metrics and dimensions."})
+    return pd.DataFrame(rows)

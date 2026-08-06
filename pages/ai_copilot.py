@@ -85,9 +85,9 @@ def _render_copilot_response(item: dict, index: int) -> None:
 
 def _render_copilot(ctx, alerts) -> None:
     st.markdown("""<section class='copilot-hero'><div><small>GOVERNED BUSINESS COPILOT</small>
-      <h2>Ask the business. Verify the evidence.</h2><p>Answers use approved analytical routines only—never free-form SQL.</p></div>
+      <h2>Ask anything about your operation.</h2><p>Open analysis across governed client data—with evidence, insights and charts.</p></div>
       <span class='material-symbols-rounded'>forum</span></section>""", unsafe_allow_html=True)
-    st.info("The Copilot applies the global market and period filters, anonymizes player evidence and cites every governed source.", icon=":material/security:")
+    st.info("The Copilot converts natural language into a validated read-only semantic query, applies the global filters, anonymizes player evidence and cites every source.", icon=":material/security:")
     st.session_state.setdefault("copilot_history", [])
     copilot = GovernedCopilot(ctx, alerts)
 
@@ -98,7 +98,7 @@ def _render_copilot(ctx, alerts) -> None:
         with suggestion_cols[index % 3]:
             if st.button(suggestion, key=f"copilot_suggestion_{index}", width="stretch"):
                 selected_question = suggestion
-    question = st.chat_input("Ask about revenue, games, players, acquisition, payments, risk or sportsbook…", key="copilot_question")
+    question = st.chat_input("Ask any question about the client’s casino and sportsbook data…", key="copilot_question")
     question = question or selected_question
     if question:
         previous_intent = st.session_state.copilot_history[0]["response"].intent if st.session_state.copilot_history else None
@@ -127,7 +127,7 @@ def _render_copilot(ctx, alerts) -> None:
         data_table(approved_catalog())
         st.markdown("""
         - User text is never inserted into SQL.
-        - Only fixed, parameterized analytical routines can query the warehouse.
+        - Flexible questions compile into an allow-listed semantic plan; model-generated text never becomes SQL.
         - Direct player identifiers and personal data are never returned.
         - Questions outside the approved casino and sportsbook scope are refused before any query executes.
         - Outputs are decision support and never execute campaigns, limits or player-protection actions.

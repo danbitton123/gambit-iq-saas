@@ -178,13 +178,13 @@ The **ML Intelligence** workspace in AI Copilot exposes validation/test scorecar
 
 ## Conversational governed AI Copilot
 
-AI Copilot converts business questions into an approved analytical intent. It never generates or executes free-form SQL: user text selects a fixed parameterized routine, the global period and market filters are applied by `SQLContext`, and only governed result columns reach the answer layer. It can create an appropriate chart from the returned evidence and explain that chart with explicit sources, limits and confidence.
+AI Copilot supports open business questions through a governed semantic layer. Natural language becomes a structured plan containing only an approved dataset, dimensions, metrics, ordering and result limit. The server validates that plan and compiles parameterized read-only SQL; model-generated text never becomes executable SQL. Global period and market filters remain mandatory. The same evidence drives the answer, chart, sources, limits and confidence.
 
 Each response includes the business conclusion, supporting rows, source tables, active filter scope, limitations and a confidence level. The interface provides suggested questions, session history, Markdown export and useful/not-useful feedback. Direct player identifiers are replaced with irreversible aliases, sensitive-data requests are refused before querying, and unrelated questions cannot access the warehouse.
 
 The full-page conversation supports follow-up questions and Markdown export. A floating **Ask Gambit AI** assistant follows every dashboard so a user can ask about the current page, KPI or chart without losing their place. When `OPENAI_API_KEY` is configured, the Responses API performs allow-listed intent classification and enriches the governed result conversationally; `store=false` is enforced. Without a key, deterministic governed routing remains fully operational.
 
-The approved catalogue covers NGR drivers, underperforming games, acquisition allocation, churn value at risk, VIP attention, withdrawal failures, priority actions, casino performance, sportsbook performance, payments and source-data readiness. New data access still requires a reviewed catalogue entry with fixed SQL and tests.
+The semantic catalogue covers executive revenue, casino games and providers, sportsbook sports and events, payments, acquisition and anonymized player intelligence. Questions can request breakdowns by country, time, channel, game, provider, payment method, sport, event, VIP tier and other approved dimensions. New tables or columns still require an explicit reviewed catalogue entry and tests.
 
 ## Governed CSV import
 
