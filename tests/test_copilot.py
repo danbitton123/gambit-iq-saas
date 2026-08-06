@@ -61,6 +61,15 @@ def test_conversation_follow_up_and_page_context_remain_governed():
     assert quality.intent == "data_quality" and quality.chart
 
 
+def test_open_business_question_explores_data_instead_of_refusing():
+    copilot=GovernedCopilot(_context())
+    broad=copilot.ask("Tell me what matters most in this casino today")
+    follow_up=copilot.ask("Why?",previous_response=broad)
+    assert broad.intent=="semantic_query" and not broad.refused and broad.chart
+    assert not follow_up.refused and not follow_up.evidence.empty
+    assert "catalog" not in broad.answer.lower()
+
+
 def test_copilot_ui_history_feedback_and_export():
     app = AppTest.from_file(Path(__file__).parent / "app_harness.py", default_timeout=30).run()
     next(widget for widget in app.radio if widget.label == "Test page").set_value("AI Copilot").run()

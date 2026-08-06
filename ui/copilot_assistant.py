@@ -52,9 +52,10 @@ def render_copilot_visual(response: CopilotResponse, compact: bool = False) -> N
 
 def _submit_question(ctx, page: str, question: str) -> None:
     history = st.session_state.setdefault("floating_copilot_history", [])
-    previous_intent = history[-1]["response"].intent if history else None
+    previous_response=history[-1]["response"] if history else None
+    previous_intent=previous_response.intent if previous_response else None
     alerts = DecisionEngine(ctx).evaluate()
-    response = GovernedCopilot(ctx, alerts).ask(question, previous_intent=previous_intent, page_context=page)
+    response=GovernedCopilot(ctx,alerts).ask(question,previous_intent=previous_intent,page_context=page,previous_response=previous_response)
     history.append({"question": question, "response": response, "page": page, "scope": ctx.period_label})
     st.session_state["floating_copilot_history"] = history[-8:]
 

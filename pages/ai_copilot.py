@@ -101,8 +101,9 @@ def _render_copilot(ctx, alerts) -> None:
     question = st.chat_input("Ask any question about the client’s casino and sportsbook data…", key="copilot_question")
     question = question or selected_question
     if question:
-        previous_intent = st.session_state.copilot_history[0]["response"].intent if st.session_state.copilot_history else None
-        response = copilot.ask(question, previous_intent=previous_intent, page_context="AI Copilot")
+        previous_response=st.session_state.copilot_history[0]["response"] if st.session_state.copilot_history else None
+        previous_intent=previous_response.intent if previous_response else None
+        response=copilot.ask(question,previous_intent=previous_intent,page_context="AI Copilot",previous_response=previous_response)
         st.session_state.copilot_history.insert(0, {
             "id": f"{len(st.session_state.copilot_history)+1}_{abs(hash(question))}",
             "question": question, "scope": ctx.period_label, "response": response,
@@ -123,13 +124,13 @@ def _render_copilot(ctx, alerts) -> None:
         export = "\n\n---\n\n".join(_analysis_markdown(item) for item in reversed(history))
         st.download_button("Download complete analysis", export, "gambit_iq_copilot_analysis.md", "text/markdown", icon=":material/download:", width="stretch")
 
-    with st.expander("Approved analytical catalogue and safety policy"):
+    with st.expander("Available data domains and safety policy"):
         data_table(approved_catalog())
         st.markdown("""
         - User text is never inserted into SQL.
         - Flexible questions compile into an allow-listed semantic plan; model-generated text never becomes SQL.
         - Direct player identifiers and personal data are never returned.
-        - Questions outside the approved casino and sportsbook scope are refused before any query executes.
+        - Questions about the operator’s data are analyzed openly; unrelated or sensitive requests cannot reach the warehouse.
         - Outputs are decision support and never execute campaigns, limits or player-protection actions.
         """)
 
