@@ -117,7 +117,7 @@ def render(ctx) -> None:
         ("Predicted RG Interventions", f"{int(kpi_summary.rg_interventions):,}", "RG review threshold ≥55%"),
         ("Predicted VIP Candidates", f"{int(vip_candidates):,}", "Top 10% predicted total LTV 180D"),
         ("Observed Retention D30", pct(retention.retention_d30), f"{int(retention.retained_players or 0):,} / {int(retention.eligible_players or 0):,} eligible"),
-    ], ctx)
+    ], ctx, columns=4)
 
     st.markdown("### Portfolio segmentation")
     segment_counts = pd.DataFrame({"segment": SEGMENTS[1:], "players": [int(players[name].sum()) for name in SEGMENTS[1:]]})
