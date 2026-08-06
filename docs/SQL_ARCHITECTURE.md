@@ -116,6 +116,8 @@ Python ML training/scoring
 
 `data/warehouse.py` controls this order. It records every run in `pipeline_runs`, enables foreign-key validation and stops when a quality test fails.
 
+"Python ML training/scoring" is `ml.pipeline.train_and_score()`, which orchestrates one project per KPI family under `ml/` (`ml/churn`, `ml/ltv`, `ml/revenue_forecast`, `ml/anomaly_detection`, `ml/next_best_action`, sharing feature/model-factory/metric code from `ml/shared`) and writes `model_scores`, `model_metrics_v2`, `forecast_backtest`, `ml_anomalies` and `next_best_actions` before `60_ml_marts.sql` runs.
+
 ## Built-in quality controls
 
 - uniqueness of player, session, transaction and sportsbook-bet keys;

@@ -112,11 +112,15 @@ gambit_iq_streamlit/
 ├── data/
 │   ├── generator.py
 │   └── repository.py
-├── ml/
-│   └── pipeline.py
-├── models/
-│   ├── *_model.joblib
-│   └── metrics.json
+├── ml/                        # one project per KPI, orchestrated by pipeline.py
+│   ├── pipeline.py            # train_and_score() — single public entry point
+│   ├── shared/                # features, model factories, metrics reused by every project
+│   ├── churn/                 # churn probability, 7/14/30-day horizons
+│   ├── ltv/                   # remaining lifetime value, 30/90/180-day horizons
+│   ├── revenue_forecast/      # daily GGR/NGR/deposits/FTD forecasters
+│   ├── anomaly_detection/     # Isolation Forest anomaly detection
+│   └── next_best_action/      # governed recommendation rules
+├── models/                    # trained artifacts, mirrored by KPI (churn/, ltv/, forecast/) + metrics.json
 ├── docs/
 │   ├── KPI_DICTIONARY.md
 │   ├── SQL_ARCHITECTURE.md
