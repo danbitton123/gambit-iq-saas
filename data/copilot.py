@@ -110,21 +110,28 @@ class GovernedCopilot:
     def scope(self) -> str:
         return self.ctx.period_label
 
-    def ask(self, question: str, previous_intent: str | None = None, page_context: str | None = None) -> CopilotResponse:
+    def ask(self, question: str, previous_intent: str | None = None, page_context: str | None = None,
+            previous_response: CopilotResponse | None = None) -> CopilotResponse:
         try:
-            return self._ask(question,previous_intent,page_context)
+            return self._ask(question,previous_intent,page_context,previous_response)
         except (SQLQueryError,DataConnectionError):
             return CopilotResponse("query_unavailable","Analysis temporarily unavailable",
                 "I could not safely complete this data query. Your dashboard remains available; try rephrasing the question or retry shortly.",
                 pd.DataFrame(),("Governed semantic layer · query blocked safely",),
                 "No partial or unvalidated result was returned, and no write operation was attempted.",0.0,True)
 
-    def _ask(self, question: str, previous_intent: str | None = None, page_context: str | None = None) -> CopilotResponse:
+    def _ask(self, question: str, previous_intent: str | None = None, page_context: str | None = None,
+             previous_response: CopilotResponse | None = None) -> CopilotResponse:
         normalized = re.sub(r"\s+", " ", question.strip().lower())
         if len(normalized) < 4:
             return self._refusal("Please ask a complete business question about casino, sportsbook, players, acquisition, payments, risk or revenue.")
         if self._sensitive_request(normalized):
             return self._refusal("I cannot reveal direct player identifiers, names, contact details, credentials or raw personal data. I can provide anonymized operational cohorts instead.")
+        if self._outside_business_scope(normalized):
+            return self._refusal("I’m focused on this operator’s casino, sportsbook, player, marketing, payment and risk data. Ask me any question within that business scope.")
+        is_follow_up=any(re.search(pattern,normalized) for pattern in FOLLOW_UP_PATTERNS)
+        if previous_response is not None and is_follow_up and not previous_response.refused:
+            return self._follow_up(question,previous_response,page_context)
         intent = next((item for item in APPROVED_INTENTS if any(re.search(pattern, normalized) for pattern in item.patterns)), None)
         if intent is None and previous_intent and any(re.search(pattern, normalized) for pattern in FOLLOW_UP_PATTERNS):
             intent = next((item for item in APPROVED_INTENTS if item.intent == previous_intent), None)
@@ -140,7 +147,14 @@ class GovernedCopilot:
                 return self._conversational_answer(question,response,page_context)
             intent = self._model_route(question, page_context)
         if intent is None:
-            return self._refusal("I could not map this question to the governed casino data model. Ask about revenue, players, games, acquisition, payments, risk, sportsbook or data quality, and specify a breakdown such as country, channel, game or month.")
+            semantic=SemanticQueryEngine(self.ctx).answer("revenue and estimated NGR per country")
+            if semantic is not None:
+                chart=CopilotChart(semantic.chart_kind,semantic.chart_x,semantic.chart_y,"EXECUTIVE DATA EXPLORATION","A broad question triggers a governed cross-market exploration of the active scope.")
+                response=CopilotResponse("semantic_query","Executive data exploration",
+                    "I interpreted this as an open request for the most useful executive view. "+semantic.answer,
+                    semantic.evidence,semantic.sources,semantic.limitations,.80,False,chart)
+                return self._conversational_answer(question,response,page_context)
+            return CopilotResponse("no_data","No matching data","I understood the question, but the active scope does not contain enough data to calculate a reliable answer.",pd.DataFrame(),("Active client warehouse",),"Try a wider period or another market.",1.0)
         response = self._with_chart(getattr(self, intent.handler)())
         return self._conversational_answer(question, response, page_context)
 
@@ -213,11 +227,22 @@ class GovernedCopilot:
         sensitive = ("email", "phone", "address", "password", "credential", "full name", "player id", "raw id", "nom complet", "adresse")
         return any(term in question for term in sensitive)
 
+    @staticmethod
+    def _outside_business_scope(question: str) -> bool:
+        unrelated=("election","weather","recipe","poem","medical advice","politics","write code","bitcoin price","météo","recette","élection","politique")
+        return any(term in question for term in unrelated)
+
+    def _follow_up(self,question: str,previous: CopilotResponse,page_context: str | None) -> CopilotResponse:
+        if os.getenv("OPENAI_API_KEY","").strip():
+            return self._conversational_answer(question,previous,page_context)
+        answer=f"Building on the previous result: {previous.answer} The interpretation remains limited to the displayed evidence. {previous.limitations}"
+        return replace(previous,answer=answer,confidence=max(previous.confidence-.03,0))
+
     def _source(self, *tables: str) -> tuple[str, ...]:
         return tuple(f"{table} · global scope: {self.scope}" for table in tables)
 
     def _refusal(self, reason: str) -> CopilotResponse:
-        return CopilotResponse("refused", "Question not processed", reason, pd.DataFrame(), ("Approved intent catalogue",), "No warehouse query was executed.", 1.0, True)
+        return CopilotResponse("refused", "Protected data boundary", reason, pd.DataFrame(), ("Gambit IQ data-access policy",), "No warehouse query was executed.", 1.0, True)
 
     def _ngr_change(self) -> CopilotResponse:
         sql = """SELECT COALESCE(SUM(casino_ggr),0) casino_ggr,COALESCE(SUM(sports_ggr),0) sportsbook_ggr,
