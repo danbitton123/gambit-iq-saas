@@ -11,3 +11,6 @@ data/.*.building.db*
 data/imports/
 *.pyc
 .env
+
+# ml.pipeline.train_and_score() output — regenerated on first run, never read back.
+models/*
