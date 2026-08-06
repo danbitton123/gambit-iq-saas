@@ -44,7 +44,8 @@ def _profile_fact(label: str, value: str, note: str = "", icon: str | None = Non
 
 def render(ctx) -> None:
     page_header("PLAYER PROFILE", "Individual value, behavior, risk and activation drill-down", "Customer Intelligence")
-    players = prepare_players(ctx)
+    with st.spinner("Scoring player portfolio…"):
+        players = prepare_players(ctx)
     if players.empty:
         empty_state("No players match this market")
         return
@@ -93,6 +94,18 @@ def render(ctx) -> None:
         for index, fact in enumerate(facts):
             with cols[index % 4]:
                 _profile_fact(*fact)
+        peer_avg = filtered[["lifetime_ggr", "predicted_total_ltv_180d", "churn_probability", "rg_risk"]].mean()
+        comparison = pd.DataFrame({
+            "metric": ["Lifetime GGR", "Predicted total LTV 180D", "Churn risk", "RG risk"],
+            "player": [player.lifetime_ggr, player.predicted_total_ltv_180d, player.churn_probability, player.rg_risk],
+            "segment_avg": [peer_avg.lifetime_ggr, peer_avg.predicted_total_ltv_180d, peer_avg.churn_probability, peer_avg.rg_risk],
+        })
+        comparison["ratio"] = comparison.player / comparison.segment_avg.replace(0, pd.NA)
+        fig = px.bar(comparison, x="ratio", y="metric", orientation="h", color="ratio", text=comparison.ratio.map(lambda v: f"{v:.1f}x" if pd.notna(v) else "—"),
+                     title=f"THIS PLAYER VS. “{segment_choice.upper()}” AVERAGE", color_continuous_scale=[COLORS["cyan"], COLORS["gold"], COLORS["red"]])
+        fig.add_vline(x=1, line_dash="dash", line_color=COLORS["green"], annotation_text="Segment average")
+        fig.update_layout(coloraxis_showscale=False, xaxis_title="Player value ÷ segment average")
+        chart(polish(fig, 300, False), comparison, explanation=f"How this player compares to the average player in “{segment_choice}” on value and risk. 1.0x means exactly average.")
     with behavior_tab:
         cols = st.columns(4)
         frequency = player.sessions / max((ctx.end-ctx.start).days + 1, 1) * 30

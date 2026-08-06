@@ -6,10 +6,10 @@ CasinoAI is a local, portfolio-ready B2B analytics application for an online cas
 
 ## Included pages
 
-1. **Command Center** — NGR, active players and the six governed action-required signals, at a glance.
-2. **Forecast & Recommendations** — 7/30-day revenue forecast and explainable, accountable next actions.
-3. **Player Intelligence** — Portfolio KPIs, eight overlapping business segments and CRM-safe export.
-4. **Player Profile** — Individual player drill-down: value/cash, gaming behavior, risk gauges, timeline and CRM history.
+1. **Command Center** — NGR, active players and the top governed Decision Engine alerts, at a glance.
+2. **Revenue Forecast** — 7/30-day revenue forecast, run-rate gap and weekly forecast breakdown.
+3. **Player Intelligence** — Portfolio KPIs, eight overlapping business segments, value/risk charts and CRM-safe export.
+4. **Player Profile** — Individual player drill-down: value/cash, gaming behavior, risk gauges, peer comparison, timeline and CRM history.
 5. **Casino Games** — GGR, bets, margin, actual/theoretical RTP and activity heatmap.
 6. **Sportsbook & Trading** — Handle, hold, exposure, sport profitability and live risk feed.
 7. **Acquisition** — FTD, CAC, predicted ROAS, affiliate quality and conversion funnel.
@@ -142,11 +142,11 @@ casino_ai_streamlit/
 │   └── ... one package per page
 ├── pages/
 │   ├── overview.py                    # Command Center
-│   ├── overview_metrics.py            # shared derived metrics for Command Center + Forecast & Recommendations
-│   ├── forecast_recommendations.py
-│   ├── player_intelligence.py         # portfolio KPIs, segmentation, CRM export
+│   ├── overview_metrics.py            # shared derived metrics for Command Center + Revenue Forecast
+│   ├── revenue_forecast.py
+│   ├── player_intelligence.py         # portfolio KPIs, segmentation, value/risk charts, CRM export
 │   ├── player_intelligence_shared.py  # shared player-base prep for both player pages
-│   ├── player_profile.py              # individual player drill-down
+│   ├── player_profile.py              # individual player drill-down + peer comparison
 │   ├── casino.py
 │   ├── sportsbook.py
 │   ├── acquisition.py
@@ -156,7 +156,7 @@ casino_ai_streamlit/
 │   └── ai_copilot.py
 ├── nav_pages/
 │   ├── command_center.py
-│   ├── forecast_recommendations.py
+│   ├── revenue_forecast.py
 │   ├── player_intelligence.py
 │   ├── player_profile.py
 │   ├── ai_copilot.py
@@ -175,11 +175,11 @@ The native CasinoAI logo sits above navigation. A persistent **Dark / Light** de
 
 The UI explicitly handles loading, empty scopes, invalid filters, SQL failures, unavailable models, stale data and interrupted connections. A top-level safety boundary logs technical diagnostics with a reference code while showing users a concise recovery message—Python tracebacks are never rendered in the product UI.
 
-The Command Center is the executive at-a-glance view: six governed performance KPIs with prior-period and objective progress, plus six data-driven action-required signals. Its market-aware 7/30-day forecast and explainable recommendations (signal, cause, impact, action, confidence) live on the dedicated **Forecast & Recommendations** page, so neither page is overloaded.
+The Command Center is the executive at-a-glance view: six governed performance KPIs with prior-period and objective progress, plus the top governed alerts from the AI Decision Engine (see below) — the same rules and numbers AI Copilot uses, not a separately computed duplicate. Its market-aware 7/30-day forecast, run-rate gap and weekly forecast breakdown live on the dedicated **Revenue Forecast** page, so neither page is overloaded. Accountable next actions (signal, cause, impact, action, confidence, status) live once, on AI Copilot's Recommendation center.
 
-Player Intelligence and Player Profile split the former single "Player 360" page in the same spirit: Player Intelligence covers portfolio segmentation (eight overlapping business segments), governed portfolio KPIs and CSV export for simulated CRM activation; Player Profile is the individual drill-down — observed value/cash/gaming history, RFM, modelled churn/fraud/RG and future-value signals, responsible activation guardrails and a lifetime timeline. Campaign and bonus histories remain explicitly labelled demo simulations until those source ledgers are connected.
+Player Intelligence and Player Profile split the former single "Player 360" page in the same spirit: Player Intelligence covers portfolio segmentation (eight overlapping business segments), governed portfolio KPIs, a predicted-value-by-segment chart, a risk-vs-value scatter and CSV export for simulated CRM activation; Player Profile is the individual drill-down — observed value/cash/gaming history, a peer-vs-segment-average comparison, RFM, modelled churn/fraud/RG and future-value signals, responsible activation guardrails and a lifetime timeline. Campaign and bonus histories remain explicitly labelled demo simulations until those source ledgers are connected.
 
-The AI Decision Engine evaluates ten auditable rules for revenue, RTP, acquisition, providers, payments, conversion, sportsbook exposure, revenue concentration, fraud and Responsible Gaming. Triggered alerts feed an operational recommendation register with accountable owner, impact, recovery potential, effort, priority, confidence, status and measured-result tracking.
+The AI Decision Engine evaluates ten auditable rules for revenue, RTP, acquisition, providers, payments, conversion, sportsbook exposure, revenue concentration, fraud and Responsible Gaming. Triggered alerts feed a single operational recommendation register (on AI Copilot) with accountable owner, impact, recovery potential, effort, priority, confidence, status and measured-result tracking — Command Center previews only its highest-severity signals from that same register, so the two pages never disagree.
 
 ## Temporal ML v2
 

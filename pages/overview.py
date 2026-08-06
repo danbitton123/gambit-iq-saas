@@ -4,6 +4,7 @@ import plotly.express as px
 import streamlit as st
 
 from config import COLORS
+from data.decision_engine import DecisionEngine
 from pages.overview_metrics import load, num
 from ui.charts import polish
 from ui.components import chart, money, pct, period_delta
@@ -11,12 +12,8 @@ from ui.kpi_governance import kpi_help
 from ui.theme import page_header
 
 
-def _severity(value: float, warning: float, critical: float) -> str:
-    if value >= critical:
-        return "critical"
-    if value >= warning:
-        return "warning"
-    return "stable"
+SEVERITY_RANK = {"Critical": 0, "High": 1, "Medium": 2}
+TOP_ALERTS = 6
 
 
 def _executive_kpis(items: list[dict], ctx) -> None:
@@ -33,12 +30,13 @@ def _executive_kpis(items: list[dict], ctx) -> None:
             st.caption(f"{progress:.0%} of objective · {item['objective']}")
 
 
-def _alert_card(title: str, detail: str, value: str, severity: str, action: str) -> None:
-    labels = {"critical": "CRITICAL", "warning": "REVIEW", "stable": "STABLE"}
+def _alert_card(alert) -> None:
+    css_severity = "critical" if alert.severity == "Critical" else "warning"
     st.markdown(
-        f"<article class='command-alert command-alert-{severity}'>"
-        f"<div class='command-alert-top'><span>{labels[severity]}</span><strong>{title}</strong></div>"
-        f"<div class='command-alert-value'>{value}</div><p>{detail}</p><small>{action}</small></article>",
+        f"<article class='command-alert command-alert-{css_severity}'>"
+        f"<div class='command-alert-top'><span>{alert.severity.upper()} · {alert.market}</span><strong>{alert.title}</strong></div>"
+        f"<div class='command-alert-value'>{alert.current_value}</div>"
+        f"<p>{alert.kpi} · usual {alert.usual_value}. {alert.probable_cause}</p><small>{alert.recommendation}</small></article>",
         unsafe_allow_html=True,
     )
 
@@ -69,21 +67,28 @@ def render(ctx) -> None:
         {"label": "Observed Blended Hold", "value": pct(metrics.hold, 2), "delta": period_delta(metrics.hold, metrics.previous_hold), "progress": metrics.hold/targets["hold"], "objective": "7.0% hold"},
     ], ctx)
 
-    game_row, campaign_row, sportsbook_row = metrics.game_row, metrics.campaign_row, metrics.sportsbook_row
+    with st.spinner("Evaluating governed decision rules…"):
+        alerts = DecisionEngine(ctx).evaluate()
+    # One card per distinct rule (its worst-affected market), not one per market — otherwise a
+    # single rule triggering in every country would crowd out every other signal when "All
+    # markets" is selected.
+    worst_per_rule = {}
+    for alert in alerts:
+        current_worst = worst_per_rule.get(alert.rule_id)
+        rank = (SEVERITY_RANK.get(alert.severity, 3), -alert.financial_impact)
+        if current_worst is None or rank < (SEVERITY_RANK.get(current_worst.severity, 3), -current_worst.financial_impact):
+            worst_per_rule[alert.rule_id] = alert
+    top_alerts = sorted(worst_per_rule.values(), key=lambda alert: (SEVERITY_RANK.get(alert.severity, 3), -alert.financial_impact))[:TOP_ALERTS]
+
     st.markdown("### Action required")
-    st.caption("Six governed risk signals, refreshed for the selected period and market. See the Forecast & Recommendations page for the forward outlook and next actions.")
-    alert_cols = st.columns(3)
-    alerts = [
-        ("Revenue momentum", "GGR versus the immediately preceding equivalent period.", f"{metrics.revenue_change:+.1%}", _severity(max(-metrics.revenue_change, 0), .05, .12), "Review the revenue mix and largest negative contributors."),
-        ("Casino RTP anomaly", f"{game_row.game_name if game_row is not None else 'No game'} has the largest absolute variance from theoretical RTP.", f"{metrics.rtp_variance:+.2%} abs. variance", _severity(metrics.rtp_variance, .02, .04), "Validate sample size, game configuration and provider feed."),
-        ("Acquisition efficiency", f"{campaign_row.channel if campaign_row is not None else 'No channel'} is the weakest predicted 90-day ROAS proxy.", f"{metrics.worst_roas:.2f}x ROAS proxy", "critical" if metrics.worst_roas and metrics.worst_roas < 1 else "warning" if metrics.worst_roas < 2 else "stable", "Review spend assumptions before reallocating budget."),
-        ("Predicted churn", "Average churn probability among players active in the selected scope.", f"{metrics.churn_change:+.1%} vs prior", _severity(max(metrics.churn_change, 0), .03, .08), f"Prioritize {int(metrics.risk_now.high_churn or 0):,} high-risk players."),
-        ("Payment risk", "Change in observed deposit approval rate versus the previous period.", f"{metrics.approval_drop:.1%} approval decline", _severity(metrics.approval_drop, .02, .05), "Inspect declines by payment method and issuer."),
-        ("Sportsbook concentration", f"{sportsbook_row.event_name if sportsbook_row is not None else 'No event'} holds the largest share of settled handle.", f"{metrics.event_share:.1%} of handle", _severity(metrics.event_share, .30, .45), "Review event-level concentration and trading limits."),
-    ]
-    for index, args in enumerate(alerts):
-        with alert_cols[index % 3]:
-            _alert_card(*args)
+    if not top_alerts:
+        st.success("No governed rule is currently triggered for this period and market.")
+    else:
+        st.caption(f"The {len(top_alerts)} highest-severity distinct signals from the governed Decision Engine. Open AI Copilot → Intelligent alerts for the full register with status tracking.")
+        alert_cols = st.columns(3)
+        for index, alert in enumerate(top_alerts):
+            with alert_cols[index % 3]:
+                _alert_card(alert)
 
     st.markdown("### Risk concentration")
     color_map = {"Stable": COLORS["green"], "Watch": COLORS["gold"], "High risk": COLORS["red"]}
