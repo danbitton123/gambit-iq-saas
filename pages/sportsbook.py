@@ -20,11 +20,17 @@ def render(ctx)->None:
         empty_state("No sportsbook activity matches these filters")
         return
     threshold=ctx.scalar("""WITH d AS (SELECT DATE(bet_date),SUM(stake) x FROM v_sports_bets_enriched WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country) GROUP BY DATE(bet_date)) SELECT AVG(x) FROM d""") or 0
+    top_event=ctx.query("""SELECT event_name,SUM(stake) exposure FROM v_sports_bets_enriched WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country) GROUP BY event_name ORDER BY exposure DESC LIMIT 1""")
     left,right=st.columns([3.1,1])
     with left:
         fig=px.line(daily,x="date",y="Exposure",color="sport",title="DAILY HANDLE BY SPORT · SQL");fig.add_hline(y=threshold,line_dash="dash",line_color=COLORS["red"],annotation_text="Daily mean");chart(polish(fig,400),daily,explanation="Lines show settled stake volume (handle), not open exposure. The dashed line is the filtered daily mean.")
     with right:
-        st.markdown("<p class='panel-title'>Live Risk Feed</p>",unsafe_allow_html=True);insight("Odds movement anomaly","Rapid movement detected in a football market.","HIGH",True);insight("Concentrated liability","Top events require review.",money(m.exposure*.42),True);insight("Sharp bettor alert","Unusual timing and stake concentration.","Manual review",True)
+        st.markdown("<p class='panel-title'>Live Risk Feed</p>",unsafe_allow_html=True);insight("Odds movement anomaly","Rapid movement detected in a football market.","HIGH",True)
+        if not top_event.empty:
+            insight("Concentrated liability",f"{top_event.iloc[0].event_name} holds the largest settled handle.",money(top_event.iloc[0].exposure),True)
+        else:
+            insight("Concentrated liability","No settled events in this period.","—",True)
+        insight("Sharp bettor alert","Unusual timing and stake concentration.","Manual review",True)
     sport=ctx.query("""SELECT sport,SUM(sportsbook_ggr) GGR,SUM(stake) Handle,COUNT(*) Bets,SUM(sportsbook_ggr)/NULLIF(SUM(stake),0) Hold FROM v_sports_bets_enriched WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country) GROUP BY sport ORDER BY GGR""")
     comp=ctx.query("""SELECT CASE is_live WHEN 1 THEN 'Live' ELSE 'Pre-match' END Type,SUM(stake) stake FROM v_sports_bets_enriched WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country) GROUP BY is_live""")
     events=ctx.query("""WITH e AS (SELECT event_name,sport,SUM(stake) Exposure,SUM(sportsbook_ggr) GGR,COUNT(*) Bets FROM v_sports_bets_enriched WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country) GROUP BY event_name,sport), q AS (SELECT AVG(Exposure) avg_exp FROM e) SELECT e.*,CASE WHEN Exposure>avg_exp*1.5 THEN 'HIGH' WHEN Exposure>avg_exp THEN 'MEDIUM' ELSE 'LOW' END Status FROM e CROSS JOIN q ORDER BY Exposure DESC""")

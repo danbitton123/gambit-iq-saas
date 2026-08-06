@@ -128,6 +128,7 @@ WITH current_casino AS (
   ) GROUP BY player_id
 ), base AS (
   SELECT v.player_id,v.churn_probability,v.remaining_ltv_90d,v.rg_risk,
+    COALESCE(cc.sessions,0) casino_sessions,
     COALESCE(cc.sessions,0)+COALESCE(cs.sports_bets,0) activity,
     COALESCE(pc.sessions,0)+COALESCE(ps.sports_bets,0) previous_activity,
     COALESCE(l.lifetime_ggr,0) lifetime_ggr
@@ -143,7 +144,9 @@ SELECT
   SUM(lifetime_ggr) lifetime_ggr,
   SUM(CASE WHEN activity>0 THEN remaining_ltv_90d ELSE 0 END) remaining_ltv_90d,
   SUM(CASE WHEN activity>0 AND churn_probability>=.70 THEN 1 ELSE 0 END) high_churn_risk,
-  SUM(CASE WHEN rg_risk>=.55 THEN 1 ELSE 0 END) rg_interventions
+  -- Filtered to players with a casino session in the period, matching pages/risk.py's
+  -- "Predicted RG Interventions" population exactly, so both pages agree.
+  SUM(CASE WHEN casino_sessions>0 AND rg_risk>=.55 THEN 1 ELSE 0 END) rg_interventions
 FROM base
 """
 
@@ -151,6 +154,8 @@ FROM base
 # SQLite has no native percentile function, so the 90th-percentile threshold of
 # predicted_total_ltv_180d is computed once in pandas from the SQL-sourced column
 # already loaded for segmentation; the KPI count itself runs as a bound SQL query.
+# Population matches the KPI_REGISTRY definition: active, non-Platinum players.
 PLAYER_VIP_CANDIDATES_COUNT_SQL = """
-SELECT COUNT(*) vip_candidates FROM ({base}) base_players WHERE predicted_total_ltv_180d>=:threshold
+SELECT COUNT(*) vip_candidates FROM ({base}) base_players
+WHERE (sessions+sports_bets)>0 AND vip_level<>'Platinum' AND predicted_total_ltv_180d>=:threshold
 """.format(base=PLAYER_BASE_SQL)
