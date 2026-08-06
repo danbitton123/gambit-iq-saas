@@ -12,8 +12,10 @@ COMPONENTS = Path(__file__).resolve().parents[1] / "ui" / "components.py"
 
 PAGES = {
     "Command Center": "nav_pages/command_center.py",
+    "Forecast & Recommendations": "nav_pages/forecast_recommendations.py",
     "AI Copilot": "nav_pages/ai_copilot.py",
     "Player Intelligence": "nav_pages/player_intelligence.py",
+    "Player Profile": "nav_pages/player_profile.py",
     "CRM Automation": "nav_pages/crm_automation.py",
     "Casino": "nav_pages/casino.py",
     "Sportsbook": "nav_pages/sportsbook.py",
@@ -23,12 +25,20 @@ PAGES = {
 }
 
 
+# Player Profile (single-player fact cards) and Forecast & Recommendations (forecast/decision
+# cards) use custom HTML cards rather than st.metric and intentionally have no governed KPI row.
+PAGES_WITHOUT_GOVERNED_METRICS = {"Player Profile", "Forecast & Recommendations"}
+
+
 def _widget(elements, label):
     return next(element for element in elements if element.label == label)
 
 
-def _assert_governed_metrics(app):
+def _assert_governed_metrics(app, page):
     required = ["Definition:", "Formula:", "Source:", "Period:", "Status:", "Last updated:"]
+    if page in PAGES_WITHOUT_GOVERNED_METRICS:
+        assert not app.metric
+        return
     assert app.metric
     for metric in app.metric:
         assert metric.help
@@ -42,7 +52,7 @@ def test_all_pages_render_for_global_and_market_filters():
     for page in PAGES:
         _widget(app.radio, "Test page").set_value(page).run()
         assert not app.exception, f"{page}: {[error.message for error in app.exception]}"
-        _assert_governed_metrics(app)
+        _assert_governed_metrics(app, page)
         governed_labels.update(metric.label for metric in app.metric)
 
     assert {
@@ -58,7 +68,7 @@ def test_all_pages_render_for_global_and_market_filters():
     for page in PAGES:
         _widget(app.radio, "Test page").set_value(page).run()
         assert not app.exception, f"Canada / {page}: {[error.message for error in app.exception]}"
-        _assert_governed_metrics(app)
+        _assert_governed_metrics(app, page)
         assert _widget(app.selectbox, "Market").value == "Canada"
 
 
@@ -74,7 +84,7 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     source = APP.read_text(encoding="utf-8")
     for group in ["Executive", "Customers", "Performance", "Operations"]:
         assert f'"{group}"' in source
-    for icon in ["dashboard", "psychology", "person_search", "campaign", "casino", "sports_soccer", "trending_up", "account_balance", "gpp_good"]:
+    for icon in ["dashboard", "insights", "psychology", "person_search", "badge", "campaign", "casino", "sports_soccer", "trending_up", "account_balance", "gpp_good"]:
         assert f":material/{icon}:" in source
     assert ':material/upload_file:' in source
     assert 'title="Data Import Studio"' in source
@@ -94,31 +104,40 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     assert ':has([data-testid="stMetric"])' in theme
 
 
-def test_command_center_has_complete_executive_decision_layers():
+def test_command_center_has_performance_and_action_layers():
     app = AppTest.from_file(HARNESS, default_timeout=30).run()
     assert not app.exception
     assert [metric.label for metric in app.metric] == [
         "Observed Total GGR", "Estimated NGR", "Observed Active Players",
         "Observed Deposits", "Observed FTD", "Observed Blended Hold",
     ]
-    assert len(app.get("plotly_chart")) == 2
+    assert len(app.get("plotly_chart")) == 1
     html = "\n".join(str(item.value) for item in app.markdown)
-    for heading in ("Performance at a glance", "Action required", "Forward outlook", "Recommended decisions"):
+    for heading in ("Performance at a glance", "Action required"):
         assert heading in html
+    for heading in ("Forward outlook", "Recommended decisions"):
+        assert heading not in html
     assert html.count("command-alert ") == 6
+
+
+def test_forecast_recommendations_has_outlook_and_decision_layers():
+    app = AppTest.from_file(HARNESS, default_timeout=30).run()
+    _widget(app.radio, "Test page").set_value("Forecast & Recommendations").run()
+    assert not app.exception
+    assert len(app.get("plotly_chart")) == 1
+    html = "\n".join(str(item.value) for item in app.markdown)
+    for heading in ("Forward outlook", "Recommended decisions"):
+        assert heading in html
     assert html.count("recommendation-card") == 4
     for question in ("WHAT IS HAPPENING?", "WHY?", "ESTIMATED IMPACT", "RECOMMENDED ACTION"):
         assert html.count(question) == 4
 
 
-def test_player_360_segments_record_tabs_and_crm_export():
+def test_player_intelligence_has_segments_and_crm_export():
     app = AppTest.from_file(HARNESS, default_timeout=30).run()
     _widget(app.radio, "Test page").set_value("Player Intelligence").run()
     assert not app.exception
-    assert [tab.label for tab in app.tabs] == ["Value & cash", "Gaming behavior", "Risk & RG", "Timeline", "CRM history"]
-    html = "\n".join(str(item.value) for item in app.markdown)
-    assert "player-avatar material-symbols-rounded" in html
-    assert html.count("player-fact-icon material-symbols-rounded") >= 20
+    assert not app.tabs
     segment = _widget(app.selectbox, "Business segment")
     assert segment.options == [
         "All players", "VIP active", "VIP at risk", "New FTD", "Growing players",
@@ -131,3 +150,20 @@ def test_player_360_segments_record_tabs_and_crm_export():
     segment.set_value("VIP at risk").run()
     assert not app.exception
     assert app.get("download_button")[0].label != initial_export_label
+
+
+def test_player_profile_shows_identity_card_and_tabs():
+    app = AppTest.from_file(HARNESS, default_timeout=30).run()
+    _widget(app.radio, "Test page").set_value("Player Profile").run()
+    assert not app.exception
+    assert [tab.label for tab in app.tabs] == ["Value & cash", "Gaming behavior", "Risk & RG", "Timeline", "CRM history"]
+    html = "\n".join(str(item.value) for item in app.markdown)
+    assert "player-avatar material-symbols-rounded" in html
+    assert html.count("player-fact-icon material-symbols-rounded") >= 20
+    segment = _widget(app.selectbox, "Business segment")
+    assert segment.options == [
+        "All players", "VIP active", "VIP at risk", "New FTD", "Growing players",
+        "Became inactive", "Potential bonus abuse", "RG risk", "High future value",
+    ]
+    segment.set_value("VIP at risk").run()
+    assert not app.exception

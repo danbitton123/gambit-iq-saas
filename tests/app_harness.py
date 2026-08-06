@@ -6,13 +6,18 @@ import pandas as pd
 import streamlit as st
 
 from data.repository import SQLContext, get_repository
-from pages import acquisition, ai_copilot, casino, crm, finance, overview, player_intelligence, risk, sportsbook
+from pages import (
+    acquisition, ai_copilot, casino, crm, finance, forecast_recommendations, overview,
+    player_intelligence, player_profile, risk, sportsbook,
+)
 
 
 PAGES = {
     "Command Center": overview.render,
+    "Forecast & Recommendations": forecast_recommendations.render,
     "AI Copilot": ai_copilot.render,
     "Player Intelligence": player_intelligence.render,
+    "Player Profile": player_profile.render,
     "CRM Automation": crm.render,
     "Casino": casino.render,
     "Sportsbook": sportsbook.render,
