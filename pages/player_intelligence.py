@@ -104,7 +104,10 @@ def render(ctx) -> None:
     }).iloc[0]
     # SQLite has no percentile function: the 90th-percentile threshold is computed once from
     # the SQL-sourced column already loaded above; the KPI count itself runs as SQL.
-    vip_threshold = players.predicted_total_ltv_180d.quantile(.90)
+    # Matches the KPI_REGISTRY definition ("Active non-Platinum players above the demo value
+    # threshold"): both the threshold and the count are scoped to that eligible pool.
+    vip_pool = players[(players.activity > 0) & (players.vip_level != "Platinum")]
+    vip_threshold = vip_pool.predicted_total_ltv_180d.quantile(.90) if not vip_pool.empty else float("inf")
     vip_candidates = ctx.query(PLAYER_VIP_CANDIDATES_COUNT_SQL, {"threshold": vip_threshold}).iloc[0].vip_candidates
     kpis([
         ("Observed Active Players", f"{int(kpi_summary.active_players):,}", period_delta(kpi_summary.active_players, kpi_summary.previous_active_players)),
