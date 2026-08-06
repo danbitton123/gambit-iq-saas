@@ -80,6 +80,28 @@ def test_games_dataset_is_detected_validated_and_cross_checked():
     assert any(issue.code=="ORPHAN_GAME" for issue in cross_issues)
 
 
+def test_excel_workbook_with_named_sheets_reads_like_separate_files():
+    import io
+    buffer=io.BytesIO()
+    with pd.ExcelWriter(buffer,engine="openpyxl") as writer:
+        _players().to_excel(writer,sheet_name="players",index=False)
+        _transactions().to_excel(writer,sheet_name="transactions",index=False)
+    sheets=importer.read_upload("operator_export.xlsx",buffer.getvalue())
+    assert set(sheets)=={"operator_export.xlsx · players","operator_export.xlsx · transactions"}
+    assert importer.infer_dataset("operator_export.xlsx · players",sheets["operator_export.xlsx · players"].columns)=="players"
+    assert importer.infer_dataset("operator_export.xlsx · transactions",sheets["operator_export.xlsx · transactions"].columns)=="transactions"
+
+
+def test_single_sheet_excel_workbook_uses_filename_for_detection():
+    import io
+    buffer=io.BytesIO()
+    with pd.ExcelWriter(buffer,engine="openpyxl") as writer:
+        _players().to_excel(writer,sheet_name="Sheet1",index=False)
+    sheets=importer.read_upload("players.xlsx",buffer.getvalue())
+    assert set(sheets)=={"players.xlsx"}
+    assert importer.infer_dataset("players.xlsx",sheets["players.xlsx"].columns)=="players"
+
+
 def test_train_real_models_gates_on_full_calendar_coverage(tmp_path,monkeypatch):
     db=tmp_path/"gate.db"
     with sqlite3.connect(db) as conn:
@@ -104,6 +126,6 @@ def test_import_studio_renders_all_workflow_sections():
     app=AppTest.from_file(Path(__file__).parent/"import_harness.py",default_timeout=30).run()
     assert not app.exception
     assert [tab.label for tab in app.tabs]==["1 · Upload & map","2 · Quality report","3 · Run history","Connector roadmap"]
-    assert next(uploader for uploader in app.get("file_uploader") if uploader.label=="Client CSV files")
+    assert next(uploader for uploader in app.get("file_uploader") if uploader.label=="Client CSV or Excel files")
     html="\n".join(str(item.value) for item in app.markdown)
-    assert "CSV PILOT CONNECTOR" in html and "PostgreSQL / MySQL" in html and "Amazon S3" in html
+    assert "EXCEL PILOT CONNECTOR" in html and "PostgreSQL / MySQL" in html and "Amazon S3" in html

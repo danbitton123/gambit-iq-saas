@@ -130,6 +130,39 @@ def read_csv_payload(name: str, payload: bytes) -> pd.DataFrame:
     return frame
 
 
+def _clean_excel_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    frame = frame.dropna(axis="index", how="all").dropna(axis="columns", how="all")
+    frame.columns = [str(column).strip() for column in frame.columns]
+    return frame.astype(object).where(frame.notna(), None)
+
+
+def read_upload(name: str, payload: bytes) -> dict[str, pd.DataFrame]:
+    """Read one uploaded file into {label: DataFrame}.
+
+    CSV files always yield a single entry keyed by the filename. An Excel workbook
+    (.xlsx/.xls) with a single sheet behaves the same way (the filename drives dataset
+    detection); a workbook with several named sheets (players, casino_sessions, ...)
+    yields one entry per sheet, so "one workbook, named sheets" and "one file per table"
+    are both supported, matching either export habit an operator already has.
+    """
+    if not payload or len(payload) > MAX_FILE_BYTES:
+        raise ValueError(f"{name}: file must be non-empty and no larger than 50 MB.")
+    if not Path(name).suffix.lower() in (".xlsx", ".xls"):
+        return {name: read_csv_payload(name, payload)}
+    try:
+        book = pd.read_excel(BytesIO(payload), sheet_name=None, dtype=object)
+    except Exception as exc:
+        raise ValueError(f"{name}: unreadable Excel workbook.") from exc
+    sheets = {sheet_name: _clean_excel_frame(frame) for sheet_name, frame in book.items()}
+    sheets = {sheet_name: frame for sheet_name, frame in sheets.items() if not frame.empty and len(frame.columns)}
+    if not sheets:
+        raise ValueError(f"{name}: workbook contains no data rows.")
+    if len(sheets) == 1:
+        ((_, frame),) = sheets.items()
+        return {name: frame}
+    return {f"{name} · {sheet_name}": frame for sheet_name, frame in sheets.items()}
+
+
 def infer_dataset(filename: str, columns) -> str:
     stem = _norm(Path(filename).stem)
     aliases = {"sessions":"casino_sessions", "casino":"casino_sessions", "bets":"sportsbook_bets", "sports_bets":"sportsbook_bets", "risk_events":"kyc_risk_events", "kyc":"kyc_risk_events"}
