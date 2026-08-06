@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from data.errors import DataConnectionError,SQLQueryError
+
 
 @dataclass(frozen=True)
 class Metric:
@@ -96,11 +98,20 @@ class SemanticQueryEngine:
     def __init__(self, ctx): self.ctx = ctx
 
     def answer(self, question: str) -> SemanticResult | None:
-        plan = self._llm_plan(question) or self._local_plan(question)
-        if plan is None: return None
-        plan = self._validate(plan)
-        if plan is None: return None
-        evidence = self.ctx.query(self._compile(plan))
+        candidates=[self._llm_plan(question),self._local_plan(question)]
+        plans=[]
+        for candidate in candidates:
+            plan=self._validate(candidate) if candidate is not None else None
+            if plan is not None and plan not in plans: plans.append(plan)
+        if not plans: return None
+        evidence=None; plan=None
+        for candidate in plans:
+            try:
+                evidence=self.ctx.query(self._compile(candidate));plan=candidate;break
+            except (SQLQueryError,DataConnectionError):
+                continue
+        if evidence is None or plan is None:
+            raise SQLQueryError("No validated semantic plan could be executed")
         dataset = DATASETS[plan.dataset]
         labels = {name:dataset.metrics[name].label for name in plan.metrics}
         evidence = evidence.rename(columns=labels)

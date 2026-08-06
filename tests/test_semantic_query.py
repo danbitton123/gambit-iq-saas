@@ -4,6 +4,8 @@ import pandas as pd
 
 from data.repository import SQLContext, get_repository
 from data.semantic_query import DATASETS, SemanticQueryEngine
+from data.copilot import GovernedCopilot
+from data.errors import SQLQueryError
 
 
 def _context():
@@ -36,3 +38,12 @@ def test_semantic_layer_handles_cross_domain_breakdowns():
 def test_unrelated_question_cannot_reach_the_warehouse():
     assert SemanticQueryEngine(_context()).answer("Who will win the next election?") is None
     assert all(spec.table for spec in DATASETS.values())
+
+
+def test_query_failure_is_contained_inside_the_chat():
+    class BrokenContext:
+        country="All markets";period_label="test scope"
+        def query(self,*args,**kwargs): raise SQLQueryError("simulated")
+    response=GovernedCopilot(BrokenContext()).ask("What is the revenue per country?")
+    assert response.refused and response.intent=="query_unavailable"
+    assert response.evidence.empty

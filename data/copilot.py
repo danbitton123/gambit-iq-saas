@@ -9,6 +9,7 @@ from dataclasses import dataclass, replace
 import pandas as pd
 
 from data.semantic_query import SemanticQueryEngine
+from data.errors import DataConnectionError, SQLQueryError
 
 
 @dataclass(frozen=True)
@@ -110,6 +111,15 @@ class GovernedCopilot:
         return self.ctx.period_label
 
     def ask(self, question: str, previous_intent: str | None = None, page_context: str | None = None) -> CopilotResponse:
+        try:
+            return self._ask(question,previous_intent,page_context)
+        except (SQLQueryError,DataConnectionError):
+            return CopilotResponse("query_unavailable","Analysis temporarily unavailable",
+                "I could not safely complete this data query. Your dashboard remains available; try rephrasing the question or retry shortly.",
+                pd.DataFrame(),("Governed semantic layer · query blocked safely",),
+                "No partial or unvalidated result was returned, and no write operation was attempted.",0.0,True)
+
+    def _ask(self, question: str, previous_intent: str | None = None, page_context: str | None = None) -> CopilotResponse:
         normalized = re.sub(r"\s+", " ", question.strip().lower())
         if len(normalized) < 4:
             return self._refusal("Please ask a complete business question about casino, sportsbook, players, acquisition, payments, risk or revenue.")
