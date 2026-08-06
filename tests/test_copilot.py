@@ -23,6 +23,7 @@ def test_every_suggested_question_uses_an_approved_intent():
     assert all(response.sources and response.limitations for response in responses)
     assert all(0 <= response.confidence <= 1 for response in responses)
     assert all(response.intent != "refused" for response in responses)
+    assert all(response.chart is not None for response in responses)
 
 
 def test_sensitive_and_out_of_scope_questions_are_refused_without_evidence():
@@ -48,6 +49,16 @@ def test_market_filter_is_cited_and_applied():
     response = GovernedCopilot(context).ask("Show me casino performance")
     assert not response.refused
     assert all("Canada" in source for source in response.sources)
+
+
+def test_conversation_follow_up_and_page_context_remain_governed():
+    copilot = GovernedCopilot(_context())
+    follow_up = copilot.ask("Why?", previous_intent="casino_summary")
+    page_help = copilot.ask("Explain this page", page_context="Acquisition")
+    quality = copilot.ask("What data is missing?", page_context="Data Import Studio")
+    assert follow_up.intent == "casino_summary" and follow_up.chart
+    assert page_help.intent == "acquisition_budget" and page_help.chart
+    assert quality.intent == "data_quality" and quality.chart
 
 
 def test_copilot_ui_history_feedback_and_export():

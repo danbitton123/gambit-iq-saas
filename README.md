@@ -176,13 +176,15 @@ The governed ML pipeline uses strict out-of-time evaluation: older snapshots tra
 
 The **ML Intelligence** workspace in AI Copilot exposes validation/test scorecards, forecast-versus-actual charts, anomaly evidence and action queues. Revenue actually saved is intentionally reported as unavailable until a real campaign assignment and outcome ledger is connected.
 
-## Governed AI Copilot
+## Conversational governed AI Copilot
 
-AI Copilot converts business questions into one of ten approved analytical intents. It never generates or executes free-form SQL: user text selects a fixed parameterized routine, the global period and market filters are applied by `SQLContext`, and only governed result columns reach the answer layer.
+AI Copilot converts business questions into an approved analytical intent. It never generates or executes free-form SQL: user text selects a fixed parameterized routine, the global period and market filters are applied by `SQLContext`, and only governed result columns reach the answer layer. It can create an appropriate chart from the returned evidence and explain that chart with explicit sources, limits and confidence.
 
 Each response includes the business conclusion, supporting rows, source tables, active filter scope, limitations and a confidence level. The interface provides suggested questions, session history, Markdown export and useful/not-useful feedback. Direct player identifiers are replaced with irreversible aliases, sensitive-data requests are refused before querying, and unrelated questions cannot access the warehouse.
 
-The first approved catalogue covers NGR drivers, underperforming games, acquisition allocation, churn value at risk, VIP attention, withdrawal failures, priority actions, casino performance, sportsbook performance and payments. New questions must be implemented as reviewed catalogue entries with fixed SQL and tests.
+The full-page conversation supports follow-up questions and Markdown export. A floating **Ask Gambit AI** assistant follows every dashboard so a user can ask about the current page, KPI or chart without losing their place. When `OPENAI_API_KEY` is configured, the Responses API performs allow-listed intent classification and enriches the governed result conversationally; `store=false` is enforced. Without a key, deterministic governed routing remains fully operational.
+
+The approved catalogue covers NGR drivers, underperforming games, acquisition allocation, churn value at risk, VIP attention, withdrawal failures, priority actions, casino performance, sportsbook performance, payments and source-data readiness. New data access still requires a reviewed catalogue entry with fixed SQL and tests.
 
 ## Governed CSV import
 

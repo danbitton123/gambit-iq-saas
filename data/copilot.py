@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import re
-from dataclasses import dataclass
-from typing import Callable
+from dataclasses import dataclass, replace
 
 import pandas as pd
 
@@ -18,6 +19,16 @@ class CopilotResponse:
     limitations: str
     confidence: float
     refused: bool = False
+    chart: "CopilotChart | None" = None
+
+
+@dataclass(frozen=True)
+class CopilotChart:
+    kind: str
+    x: str
+    y: tuple[str, ...]
+    title: str
+    explanation: str
 
 
 @dataclass(frozen=True)
@@ -40,6 +51,7 @@ APPROVED_INTENTS = (
     ApprovedIntent("casino_summary", "Casino performance summary", ("casino performance", "casino summary", "résumé.*casino", "performance.*casino", "how.*casino"), "_casino_summary", "Summarize casino revenue, RTP, activity and leading game."),
     ApprovedIntent("sportsbook_summary", "Sportsbook performance summary", ("sportsbook", "sports betting", "pari.*sport", "betting performance"), "_sportsbook", "Summarize handle, GGR, hold and event concentration."),
     ApprovedIntent("payments_summary", "Payments summary", ("deposit", "payment", "paiement", "dépôt", "cash flow"), "_payments", "Summarize deposits, withdrawals and approval rate."),
+    ApprovedIntent("data_quality", "Data coverage and readiness", ("missing data", "data.*missing", "donnée.*manqu", "data quality", "qualité.*donnée", "coverage.*data"), "_data_quality", "Explain source coverage and model readiness for the active client scope."),
 )
 
 SUGGESTED_QUESTIONS = (
@@ -51,6 +63,16 @@ SUGGESTED_QUESTIONS = (
     "What caused the increase in withdrawal failures?",
     "What are today’s five most important actions?",
 )
+
+PAGE_DEFAULT_INTENTS = {
+    "Command Center": "priority_actions", "AI Copilot": "priority_actions",
+    "Player Intelligence": "vip_attention", "CRM Automation": "churn_risk",
+    "Casino": "casino_summary", "Sportsbook": "sportsbook_summary",
+    "Acquisition": "acquisition_budget", "Revenue & Finance": "ngr_change",
+    "Risk & Compliance": "vip_attention", "Data Import Studio": "data_quality",
+}
+
+FOLLOW_UP_PATTERNS = (r"^why\??$", r"^pourquoi\??$", r"explain", r"explique", r"more detail", r"plus de détail", r"et pourquoi", r"what about", r"et pour")
 
 
 def _num(value, default: float = 0.0) -> float:
@@ -85,16 +107,89 @@ class GovernedCopilot:
     def scope(self) -> str:
         return self.ctx.period_label
 
-    def ask(self, question: str) -> CopilotResponse:
+    def ask(self, question: str, previous_intent: str | None = None, page_context: str | None = None) -> CopilotResponse:
         normalized = re.sub(r"\s+", " ", question.strip().lower())
         if len(normalized) < 4:
             return self._refusal("Please ask a complete business question about casino, sportsbook, players, acquisition, payments, risk or revenue.")
         if self._sensitive_request(normalized):
             return self._refusal("I cannot reveal direct player identifiers, names, contact details, credentials or raw personal data. I can provide anonymized operational cohorts instead.")
         intent = next((item for item in APPROVED_INTENTS if any(re.search(pattern, normalized) for pattern in item.patterns)), None)
+        if intent is None and previous_intent and any(re.search(pattern, normalized) for pattern in FOLLOW_UP_PATTERNS):
+            intent = next((item for item in APPROVED_INTENTS if item.intent == previous_intent), None)
+        page_prompt = any(term in normalized for term in ("this page", "cette page", "this chart", "ce graphique", "these kpi", "ces kpi", "focus on", "important ici"))
+        if intent is None and page_context and page_prompt:
+            default_intent = PAGE_DEFAULT_INTENTS.get(page_context)
+            intent = next((item for item in APPROVED_INTENTS if item.intent == default_intent), None)
+        if intent is None:
+            intent = self._model_route(question, page_context)
         if intent is None:
             return self._refusal("This question is outside the approved analytical catalogue. Try a question about NGR, games, acquisition, churn, VIP risk, withdrawals, casino, sportsbook, payments or priority actions.")
-        return getattr(self, intent.handler)()
+        response = self._with_chart(getattr(self, intent.handler)())
+        return self._conversational_answer(question, response, page_context)
+
+    @staticmethod
+    def _model_route(question: str, page_context: str | None) -> ApprovedIntent | None:
+        api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        if not api_key:
+            return None
+        try:
+            from openai import OpenAI
+            catalogue = "\n".join(f"{item.intent}: {item.description}" for item in APPROVED_INTENTS)
+            result = OpenAI(api_key=api_key, timeout=8.0, max_retries=1).responses.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-5.6"), store=False,
+                instructions=("Classify the business question into exactly one approved intent ID from the catalogue. "
+                              "Return only the ID. Return OUT_OF_SCOPE for unrelated, ambiguous or unsupported requests. "
+                              "Never answer the question and never create a new intent."),
+                input=f"Page: {page_context or 'unknown'}\nQuestion: {question}\nApproved catalogue:\n{catalogue}",
+            )
+            selected = (result.output_text or "").strip()
+            return next((item for item in APPROVED_INTENTS if item.intent == selected), None)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _with_chart(response: CopilotResponse) -> CopilotResponse:
+        candidates = {
+            "ngr_change": CopilotChart("bar","Driver",("Current","Previous"),"NGR DRIVERS · CURRENT VS PREVIOUS","Compares governed revenue components over equivalent periods."),
+            "game_performance": CopilotChart("bar","Game",("GGR",),"GAMES REQUIRING REVIEW","Ranks the weakest observed game results in the active scope."),
+            "acquisition_budget": CopilotChart("bar","Channel",("Predicted_ROAS",),"PREDICTED ROAS BY CHANNEL","Predicted proxy only; validate actual spend and incrementality before reallocating budget."),
+            "churn_risk": CopilotChart("bar","Risk_band",("Value_at_risk",),"CHURN VALUE AT RISK","Probability-weighted future value grouped by predicted risk band."),
+            "vip_attention": CopilotChart("bar","Player",("churn_probability_30d","fraud_risk","rg_risk"),"ANONYMIZED VIP RISK QUEUE","Compares modelled risks; player-protection signals override commercial actions."),
+            "withdrawal_failures": CopilotChart("bar","Payment_method",("Failure_rate_current","Failure_rate_previous"),"WITHDRAWAL FAILURE RATE","Compares observed failure rates by method across equivalent periods."),
+            "priority_actions": CopilotChart("bar","Signal",("Impact",),"PRIORITY ACTION IMPACT","Rule-specific estimates can overlap and are not additive accounting loss."),
+            "casino_summary": CopilotChart("bar","Game",("GGR",),"CASINO GGR BY GAME","Observed GGR for games in the selected period and market."),
+            "sportsbook_summary": CopilotChart("bar","Sport",("Handle","GGR"),"SPORTSBOOK PERFORMANCE BY SPORT","Observed settled handle and GGR; handle is not open liability."),
+            "payments_summary": CopilotChart("bar","Payment_method",("Deposits","Withdrawals"),"PAYMENT FLOWS BY METHOD","Observed approved deposit and withdrawal value."),
+            "data_quality": CopilotChart("bar","Dataset",("Rows",),"ACTIVE DATA COVERAGE","Row coverage in governed analytical tables for the selected scope."),
+        }
+        chart = candidates.get(response.intent)
+        required = {chart.x, *chart.y} if chart else set()
+        return replace(response, chart=chart) if chart and required <= set(response.evidence.columns) and not response.evidence.empty else response
+
+    def _conversational_answer(self, question: str, response: CopilotResponse, page_context: str | None) -> CopilotResponse:
+        """Optionally enrich a governed result; the model never receives SQL or raw identifiers."""
+        api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        if not api_key or response.refused:
+            return response
+        try:
+            from openai import OpenAI
+            evidence = response.evidence.head(25).where(pd.notna(response.evidence.head(25)), None).to_dict(orient="records")
+            client = OpenAI(api_key=api_key, timeout=8.0, max_retries=1)
+            result = client.responses.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-5.6"), store=False,
+                instructions=("You are Gambit IQ, a concise senior iGaming analyst. Answer only from the supplied "
+                              "governed analysis. Never invent values, players, causes or actions. Clearly distinguish "
+                              "observed, estimated and predicted evidence. Mention uncertainty and keep the response under 170 words."),
+                input=json.dumps({"question":question,"page":page_context,"scope":self.scope,"approved_answer":response.answer,
+                                  "evidence":evidence,"limitations":response.limitations}, default=str),
+            )
+            narrative = (result.output_text or "").strip()
+            if narrative:
+                return CopilotResponse(response.intent,response.title,narrative,response.evidence,response.sources,
+                                       response.limitations,response.confidence,response.refused,response.chart)
+        except Exception:
+            pass
+        return response
 
     @staticmethod
     def _sensitive_request(question: str) -> bool:
@@ -238,6 +333,23 @@ class GovernedCopilot:
         approval = _num((evidence.Approval_rate*evidence.Transactions).sum()/max(evidence.Transactions.sum(),1)) if not evidence.empty else 0
         answer = f"Approved deposits were {_money(deposits)}, approved withdrawals {_money(withdrawals)}, and weighted payment approval was {approval:.1%}."
         return CopilotResponse("payments_summary","Payments performance",answer,evidence,self._source("v_transactions_enriched"),"Processor response codes and settlement timing are not available.",.96)
+
+    def _data_quality(self) -> CopilotResponse:
+        evidence = self.ctx.query("""SELECT 'Players' Dataset,COUNT(DISTINCT player_id) Rows FROM players
+          WHERE (:country='All markets' OR country=:country)
+          UNION ALL SELECT 'Casino sessions',COUNT(*) FROM v_sessions_enriched
+          WHERE session_start>=:start AND session_start<:end AND (:country='All markets' OR country=:country)
+          UNION ALL SELECT 'Sportsbook bets',COUNT(*) FROM v_sports_bets_enriched
+          WHERE bet_date>=:start AND bet_date<:end AND (:country='All markets' OR country=:country)
+          UNION ALL SELECT 'Transactions',COUNT(*) FROM v_transactions_enriched
+          WHERE transaction_date>=:start AND transaction_date<:end AND (:country='All markets' OR country=:country)""")
+        missing = evidence.loc[evidence.Rows.eq(0),"Dataset"].tolist()
+        model_status = "available" if self.ctx.repo.model_available() else "unavailable"
+        coverage = ", ".join(missing) if missing else "none of the four core analytical domains"
+        answer = f"Core data coverage is present for {len(evidence)-len(missing)} of {len(evidence)} domains; missing coverage: {coverage}. Governed model outputs are {model_status}. A zero count can reflect the active market or period rather than an absent source file."
+        return CopilotResponse("data_quality","Data coverage and readiness",answer,evidence,
+                               self._source("players","v_sessions_enriched","v_sports_bets_enriched","v_transactions_enriched"),
+                               "This checks analytical row coverage, not every source-column quality rule. Use Data Import Studio for field-level errors and duplicates.",.99)
 
 
 def approved_catalog() -> pd.DataFrame:

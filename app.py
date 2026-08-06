@@ -22,6 +22,7 @@ from ui.states import (
     validate_filters,
 )
 from ui.theme import apply_theme
+from ui.copilot_assistant import render_floating_assistant
 
 
 ROOT = Path(__file__).resolve().parent
@@ -122,7 +123,10 @@ def main() -> None:
         return
 
     with st.spinner("Preparing dashboard…"):
+        current_page = getattr(navigation, "title", "Command Center")
+        st.session_state["current_page"] = current_page
         navigation.run()
+    render_floating_assistant(context, current_page)
 
 
 try:

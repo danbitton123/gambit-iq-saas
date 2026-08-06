@@ -81,6 +81,7 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     assert 'key="global_date_range"' in source
     assert 'key="global_market"' in source
     assert 'position="sidebar"' in source
+    assert "render_floating_assistant(context, current_page)" in source
     assert "showSidebarNavigation = true" in CONFIG.read_text(encoding="utf-8")
 
     theme = THEME.read_text(encoding="utf-8")

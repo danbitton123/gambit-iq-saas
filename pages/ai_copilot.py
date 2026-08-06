@@ -10,6 +10,7 @@ from data.decision_engine import DecisionAlert, DecisionEngine, RULE_CATALOG
 from ui.charts import polish
 from ui.components import chart, data_table, kpis, money, pct
 from ui.theme import page_header
+from ui.copilot_assistant import render_copilot_visual
 
 
 SEVERITY_ORDER = ["Critical", "High", "Medium"]
@@ -56,6 +57,7 @@ def _render_copilot_response(item: dict, index: int) -> None:
         else:
             st.markdown(f"### {response.title}")
             st.write(response.answer)
+            render_copilot_visual(response)
             if not response.evidence.empty:
                 with st.expander("View governed evidence", expanded=index == 0):
                     data_table(response.evidence)
@@ -99,7 +101,8 @@ def _render_copilot(ctx, alerts) -> None:
     question = st.chat_input("Ask about revenue, games, players, acquisition, payments, risk or sportsbook…", key="copilot_question")
     question = question or selected_question
     if question:
-        response = copilot.ask(question)
+        previous_intent = st.session_state.copilot_history[0]["response"].intent if st.session_state.copilot_history else None
+        response = copilot.ask(question, previous_intent=previous_intent, page_context="AI Copilot")
         st.session_state.copilot_history.insert(0, {
             "id": f"{len(st.session_state.copilot_history)+1}_{abs(hash(question))}",
             "question": question, "scope": ctx.period_label, "response": response,
@@ -242,7 +245,7 @@ def _render_ml_lab(ctx) -> None:
 
 
 def render(ctx) -> None:
-    page_header("AI DECISION ENGINE", "Automated anomaly detection, accountable recommendations and action tracking", "Operational Intelligence")
+    page_header("AI COPILOT", "Conversational analytics, intelligent alerts and accountable action tracking", "Operational Intelligence")
     with st.spinner("Evaluating governed decision rules…"):
         alerts = DecisionEngine(ctx).evaluate()
 
@@ -263,7 +266,7 @@ def render(ctx) -> None:
         ("Observed Reviewed Decisions", f"{reviewed:,} / {len(alerts):,}", "Session action register"),
     ], ctx)
 
-    copilot_tab, alerts_tab, recommendations_tab, governance_tab, ml_tab = st.tabs(["Ask Copilot", "Intelligent alerts", "Recommendation center", "Rule governance", "ML Intelligence"])
+    copilot_tab, alerts_tab, recommendations_tab, governance_tab, ml_tab = st.tabs(["AI conversation", "Intelligent alerts", "Recommendation center", "Rule governance", "ML Intelligence"])
     with copilot_tab:
         _render_copilot(ctx, alerts)
     with alerts_tab:

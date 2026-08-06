@@ -51,7 +51,7 @@ def test_decision_engine_page_exposes_operational_workflow():
     next(widget for widget in app.radio if widget.label == "Test page").set_value("AI Copilot").run()
     assert not app.exception
     tab_labels = [tab.label for tab in app.tabs]
-    assert tab_labels[:5] == ["Ask Copilot", "Intelligent alerts", "Recommendation center", "Rule governance", "ML Intelligence"]
+    assert tab_labels[:5] == ["AI conversation", "Intelligent alerts", "Recommendation center", "Rule governance", "ML Intelligence"]
     assert {"Model performance", "Forecast backtests", "Anomalies", "Next Best Action"} <= set(tab_labels)
     assert [metric.label for metric in app.metric][:5] == [
         "Observed Active Alerts", "Observed Critical Alerts", "Estimated Alert Impact",
