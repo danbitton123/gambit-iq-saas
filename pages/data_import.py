@@ -7,7 +7,7 @@ import streamlit as st
 
 from data.importer import (
     CONTRACTS, activate_import, cross_validate, file_fingerprint, import_history,
-    infer_dataset, issues_frame, quality_summary, read_csv_payload, suggest_mapping, validate_frame,
+    infer_dataset, issues_frame, quality_summary, read_upload, suggest_mapping, validate_frame,
 )
 from data.repository import get_repository
 from ui.components import data_table
@@ -37,7 +37,7 @@ def _mapping_editor(file_index: int, fingerprint: str, filename: str, frame: pd.
 
 def _future_connectors() -> None:
     st.markdown("### Connector roadmap")
-    st.caption("CSV is the active pilot connector. The following adapters share the same contract and quality engine but remain intentionally disabled until credentials, tenancy and scheduling are production-ready.")
+    st.caption("CSV and Excel are the active pilot connectors. The following adapters share the same contract and quality engine but remain intentionally disabled until credentials, tenancy and scheduling are production-ready.")
     cols=st.columns(4)
     items=[("PostgreSQL / MySQL","database","Schema discovery + incremental watermark","Prepared"),("Amazon S3","cloud","Object events + partition discovery","Prepared"),("REST API","api","Pagination + retry + rate limiting","Planned"),("Daily pipelines","schedule","Run history + alerts + idempotency","Prepared")]
     for col,(name,icon,body,status) in zip(cols,items):
@@ -46,22 +46,24 @@ def _future_connectors() -> None:
 
 def render(ctx) -> None:
     page_header("DATA IMPORT STUDIO","Map, validate and activate client CSV data safely","Data Operations")
-    st.markdown("<section class='import-hero'><span class='material-symbols-rounded'>upload_file</span><div><small>CSV PILOT CONNECTOR</small><h2>From client files to governed intelligence</h2><p>Nothing reaches a dashboard until schemas, types, keys and relationships pass validation.</p></div></section>",unsafe_allow_html=True)
+    st.markdown("<section class='import-hero'><span class='material-symbols-rounded'>upload_file</span><div><small>CSV &amp; EXCEL PILOT CONNECTOR</small><h2>From client files to governed intelligence</h2><p>Nothing reaches a dashboard until schemas, types, keys and relationships pass validation.</p></div></section>",unsafe_allow_html=True)
     upload_tab, quality_tab, history_tab, roadmap_tab=st.tabs(["1 · Upload & map","2 · Quality report","3 · Run history","Connector roadmap"])
     with upload_tab:
-        st.info("Upload UTF-8 CSV files up to 50 MB each. Required pilot domains: players plus at least one activity file.",icon=":material/info:")
-        files=st.file_uploader("Client CSV files",type=["csv"],accept_multiple_files=True,key="csv_import_files")
-        parsed=[]
-        for index,uploaded in enumerate(files or []):
+        st.info("Upload UTF-8 CSV or Excel (.xlsx) files up to 50 MB each. One workbook with named sheets (players, casino_sessions, ...) or one file per table both work. Required pilot domains: players plus at least one activity file.",icon=":material/info:")
+        files=st.file_uploader("Client CSV or Excel files",type=["csv","xlsx","xls"],accept_multiple_files=True,key="csv_import_files")
+        parsed=[]; index=0
+        for uploaded in files or []:
             try:
-                payload=uploaded.getvalue(); frame=read_csv_payload(uploaded.name,payload)
-                detected=infer_dataset(uploaded.name,frame.columns)
-                dataset=st.selectbox(f"Dataset for {uploaded.name}",list(CONTRACTS),index=list(CONTRACTS).index(detected),format_func=lambda name:CONTRACTS[name].label,key=f"dataset_{index}_{file_fingerprint(payload)}")
-                with st.expander(f"Map {uploaded.name} · detected as {CONTRACTS[dataset].label}",expanded=True):
-                    mapping=_mapping_editor(index,file_fingerprint(payload),uploaded.name,frame,dataset)
+                payload=uploaded.getvalue(); sheets=read_upload(uploaded.name,payload)
+            except ValueError as exc:
+                st.error(str(exc)); continue
+            for label,frame in sheets.items():
+                detected=infer_dataset(label,frame.columns)
+                dataset=st.selectbox(f"Dataset for {label}",list(CONTRACTS),index=list(CONTRACTS).index(detected),format_func=lambda name:CONTRACTS[name].label,key=f"dataset_{index}_{file_fingerprint(payload)}_{label}")
+                with st.expander(f"Map {label} · detected as {CONTRACTS[dataset].label}",expanded=True):
+                    mapping=_mapping_editor(index,f"{file_fingerprint(payload)}_{label}",label,frame,dataset)
                     st.dataframe(frame.head(5),width="stretch",hide_index=True)
-                parsed.append((uploaded.name,dataset,frame,mapping))
-            except ValueError as exc: st.error(str(exc))
+                parsed.append((label,dataset,frame,mapping)); index+=1
         if st.button("Validate all files",type="primary",width="stretch",disabled=not parsed,icon=":material/fact_check:"):
             frames={}; issues=[]
             for filename,dataset,frame,mapping in parsed:

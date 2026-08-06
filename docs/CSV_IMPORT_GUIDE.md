@@ -1,6 +1,8 @@
-# Gambit IQ CSV pilot guide
+# Gambit IQ CSV & Excel pilot guide
 
-Data Import Studio accepts UTF-8 CSV files up to 50 MB. Comma, semicolon, tab and pipe delimiters are detected automatically. Upload related files together so referential checks can be performed before activation.
+Data Import Studio accepts UTF-8 CSV files and Excel workbooks (`.xlsx`/`.xls`) up to 50 MB. Comma, semicolon, tab and pipe delimiters are detected automatically for CSV. An Excel workbook can hold one table per named sheet (`players`, `casino_sessions`, ...) — each sheet is treated exactly like its own file — or a single sheet, in which case the filename drives detection instead. Upload related files together so referential checks can be performed before activation.
+
+A `games` sheet/file (`game_id`, name, RTP, provider) is optional: without it, game metadata is derived from whatever is embedded in `casino_sessions`; with it, every session's `game_id` is cross-checked against it before activation.
 
 | Dataset | Required canonical fields | Optional enrichment |
 |---|---|---|
