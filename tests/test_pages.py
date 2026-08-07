@@ -2,13 +2,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from streamlit.testing.v1 import AppTest
+
+from dashboard_builder import persistence
 
 APP = Path(__file__).resolve().parents[1] / "app.py"
 HARNESS = Path(__file__).resolve().parent / "app_harness.py"
 CONFIG = Path(__file__).resolve().parents[1] / ".streamlit" / "config.toml"
 THEME = Path(__file__).resolve().parents[1] / "ui" / "theme.py"
 COMPONENTS = Path(__file__).resolve().parents[1] / "ui" / "components.py"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_dashboard_registry(tmp_path, monkeypatch):
+    """My Dashboard loads the tenant's saved dashboards on first visit (see
+    ui/dashboard_builder/state.py::ensure_loaded). Pointing every page test at an empty,
+    per-test registry keeps these tests hermetic regardless of what a real user (or a manual
+    verification session) has actually saved to data/dashboards.db."""
+    monkeypatch.setattr(persistence, "REGISTRY_PATH", tmp_path / "dashboards.db")
 
 PAGES = {
     "Command Center": "nav_pages/command_center.py",
@@ -175,19 +187,22 @@ def test_player_profile_shows_identity_card_tabs_and_peer_comparison():
     assert not app.exception
 
 
-def test_my_dashboard_builds_and_removes_a_custom_chart():
+def test_my_dashboard_builds_and_removes_a_custom_widget():
     app = AppTest.from_file(HARNESS, default_timeout=30).run()
     app = _widget(app.radio, "Test page").set_value("My Dashboard").run()
     assert not app.exception
-    assert "Your dashboard is empty" in "\n".join(str(item.value) for item in app.info)
+    html = "\n".join(str(item.value) for item in app.markdown)
+    assert "This dashboard is empty" in html
 
-    _widget(app.multiselect, "Measures (1 to 3)").set_value(["ggr"]).run()
-    app = _widget(app.button, "Add to my dashboard").set_value(True).run()
+    # Default "Add visualization" form: type=KPI, dataset=executive — add a GGR KPI widget.
+    _widget(app.multiselect, "Measures (1 to 1)").set_value(["ggr"]).run()
+    app = _widget(app.button, "Add to dashboard").set_value(True).run()
     assert not app.exception
-    assert len(app.session_state["custom_dashboard_charts"]) == 1
-    assert len(app.get("plotly_chart")) == 1
+    assert [metric.label for metric in app.metric] == ["Observed GGR"]
 
-    app = _widget(app.button, "Remove").set_value(True).run()
+    widget_delete = next(button for button in app.button if button.key and button.key.startswith("del_"))
+    app = widget_delete.set_value(True).run()
     assert not app.exception
-    assert app.session_state["custom_dashboard_charts"] == []
-    assert "Your dashboard is empty" in "\n".join(str(item.value) for item in app.info)
+    assert not app.metric
+    html = "\n".join(str(item.value) for item in app.markdown)
+    assert "This dashboard is empty" in html

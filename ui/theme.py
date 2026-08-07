@@ -21,6 +21,8 @@ h1,h2,h3 { font-family:'Manrope',sans-serif !important; letter-spacing:-.02em; }
 [data-testid="stMetricLabel"] { color:#9eb0bc;font-weight:600;min-height:2.65rem;height:auto!important;width:100%;align-items:flex-start;overflow:visible!important; }
 [data-testid="stMetricLabel"] > div { width:100%;overflow:visible!important; }[data-testid="stMetricLabel"] p { white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere;line-height:1.25!important;font-size:.82rem!important; }
 [data-testid="stMetricValue"] { font-family:'Manrope',sans-serif;font-weight:700;font-size:clamp(1.55rem,2.15vw,2.55rem)!important;line-height:1.08!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere; }
+[data-testid="stMetricValue"] > div { width:100%;overflow:visible!important;white-space:normal!important;text-overflow:clip!important; }
+[data-testid="stMetricValue"] p { white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere; }
 [data-testid="stMetricDelta"] { font-weight:600;max-width:100%;height:auto!important;white-space:normal!important;overflow:visible!important; }
 [data-testid="stMetricDelta"] > div,[data-testid="stMetricDelta"] p { white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.22!important;font-size:.76rem!important; }
 .block-container { max-width:1700px; padding-top:1.1rem; padding-bottom:3rem; }
@@ -43,6 +45,18 @@ div[data-testid="stDataFrame"] { border:1px solid rgba(141,163,180,.16);border-r
 .app-state-icon { width:25px;height:25px;flex:0 0 25px;border-radius:50%;display:grid;place-items:center;background:rgba(38,198,229,.14);font-weight:800; }
 .app-state strong { font:600 .94rem Manrope;color:#f4f7fb; }.app-state p { margin:3px 0;color:#b6c5cf;font-size:.86rem; }.app-state small { color:#8da3b4; }
 .app-state-error { border-left-color:#ff5b57; }.app-state-warning { border-left-color:#f5b84b; }.app-state-success { border-left-color:#27d17f; }
+.db-badge { display:inline-block;color:#8da3b4;background:rgba(141,163,180,.10);border-radius:7px;padding:4px 9px;font-size:.72rem;font-weight:600;margin-right:8px; }
+.db-badge-warn { color:#f5c76b;background:rgba(245,184,75,.14); }
+.db-status-line { display:flex;align-items:center;justify-content:flex-end;gap:10px;height:100%;font-size:.78rem;color:#8da3b4;padding-top:8px; }
+.db-status-line span:last-child { color:#c5d2da; }
+.db-empty-canvas { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:60px 20px;border:1px dashed rgba(141,163,180,.3);border-radius:16px;color:#8da3b4; }
+.db-empty-canvas .material-symbols-rounded { font-size:40px;color:#d9a72e; }
+.db-empty-canvas strong { color:#f4f7fb;font:600 1.05rem Manrope; }
+.db-widget-icon { font-size:16px;vertical-align:-3px;color:#26c6e5;margin-right:2px; }
+.db-size-label { text-align:center;font-size:.72rem;color:#8da3b4;padding-top:6px; }
+.db-field-row { display:flex;align-items:center;gap:7px;padding:5px 0;font-size:.82rem;color:#c5d2da; }
+.db-field-row .material-symbols-rounded { font-size:15px;color:#53b8c8; }
+.db-filters-label { font-size:.62rem;font-weight:800;letter-spacing:.12em;color:#8da3b4;margin:4px 0 2px; }
 .command-alert { min-height:176px;border:1px solid rgba(141,163,180,.18);border-top:3px solid #27d17f;background:linear-gradient(145deg,rgba(10,39,48,.96),rgba(5,24,33,.98));padding:15px 16px;border-radius:13px;margin:6px 0 12px;box-shadow:0 12px 28px rgba(0,0,0,.12); }
 .command-alert-warning { border-top-color:#f5b84b; }.command-alert-critical { border-top-color:#ff5b57; }
 .command-alert-top { display:flex;flex-direction:column;gap:5px; }.command-alert-top span { width:max-content;color:#76e8ad;background:rgba(39,209,127,.1);border-radius:5px;padding:3px 7px;font-size:.59rem;font-weight:800;letter-spacing:.12em; }
@@ -147,6 +161,12 @@ h1,h2,h3,h4,h5,h6,.page-title,.panel-title { color:#112731!important; }.page-sub
 [data-testid="stProgress"] > div > div { background:#dce8e9; }
 div[data-testid="stDataFrame"] { background:#ffffff;border-color:#d2dfe4;box-shadow:0 8px 20px rgba(25,48,60,.05); }
 hr { border-color:#d8e2e6!important; }
+.db-badge { background:#eef4f5;color:#526a78; }
+.db-badge-warn { background:#fff3d9;color:#9a6b00; }
+.db-status-line span:last-child { color:#354d5a; }
+.db-empty-canvas { border-color:#d6e2e6;color:#526a78; }
+.db-empty-canvas strong { color:#18313c; }
+.db-field-row { color:#354d5a; }
 </style>
 """
 
