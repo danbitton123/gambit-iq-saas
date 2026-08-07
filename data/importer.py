@@ -260,7 +260,12 @@ def validate_frame(dataset: str, source: pd.DataFrame, mapping: dict[str, str | 
             issues.append(QualityIssue("ERROR",dataset,"funnel",None,"INVALID_FUNNEL","Campaign funnel counts must satisfy conversions <= clicks <= impressions."))
     if dataset == "kyc_risk_events" and mapped.risk_score.notna().any() and (~mapped.risk_score.between(0,1)).any():
         issues.append(QualityIssue("ERROR",dataset,"risk_score",None,"INVALID_RANGE","Risk score must be between 0 and 1."))
-    defaults = {"channel":"Unknown","device":"Unknown","vip_level":"Standard","kyc_status":"Unknown","age_group":"Unknown","payment_method":"Unknown","event_name":"Unknown","provider":"Unknown","game_name":"Unknown","game_family":"Unknown","transaction_status":"Pending","bonus_status":"Unknown","status":"Open","source":"Unknown"}
+    # Players' own optional dimensions default to an explicit "Not provided" rather than a
+    # plausible-looking category (e.g. "Standard" for vip_level): those columns drive Player
+    # Intelligence segmentation directly, and a fabricated-looking value that blends in with real
+    # data is worse than an honest gap — it silently corrupts VIP/RFM analysis instead of
+    # surfacing that the source file's column wasn't mapped.
+    defaults = {"channel":"Not provided","device":"Not provided","vip_level":"Not provided","kyc_status":"Not provided","age_group":"Not provided","payment_method":"Unknown","event_name":"Unknown","provider":"Unknown","game_name":"Unknown","game_family":"Unknown","transaction_status":"Pending","bonus_status":"Unknown","status":"Open","source":"Unknown"}
     for field, value in defaults.items():
         if field in mapped: mapped[field] = mapped[field].fillna(value)
     if "processing_fee" in mapped: mapped["processing_fee"] = pd.to_numeric(mapped.processing_fee,errors="coerce").fillna(0.0)

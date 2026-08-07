@@ -17,6 +17,7 @@ CasinoAI is a local, portfolio-ready B2B analytics application for an online cas
 9. **Revenue & Finance** — GGR-to-NGR waterfall, payments, cash flow and reconciliation.
 10. **Risk & Compliance** — Fraud, AML, KYC, responsible gaming and case management.
 11. **AI Copilot** — Explainable forecasts, model health, recommendations and scenarios.
+12. **My Dashboard** — Self-serve chart and table builder: pick a domain, a breakdown, up to three measures and a chart type — no SQL required. Reuses the Copilot's governed semantic engine, so every chart is still a validated, parameterized, allow-listed query.
 
 ## Quick start
 
@@ -208,6 +209,8 @@ The semantic catalogue covers executive revenue, casino games and providers, spo
 **Data Import Studio** provides the first operator-data connector for players, casino sessions, sportsbook bets, transactions, bonuses, campaigns and KYC/risk events. It automatically proposes a mapping from client headers to the CasinoAI contract, then checks required columns, types, missing values, primary-key duplicates, valid ranges, domain values and cross-file player references.
 
 Imports are staged in an isolated candidate warehouse. Activation is blocked while an error remains; after a successful warehouse build the candidate replaces the active database atomically and the previous version is archived. Every attempt records its files, row count, quality score, errors and warnings. Model outputs remain explicitly **Missing data** until imported history is sufficient to train and validate them.
+
+Player dimensions that are optional-but-unmapped (channel, device, VIP level, KYC status, age group) are stored as an explicit **"Not provided"**, never a plausible-looking placeholder category — a fabricated value that blends in with real segments would silently corrupt Player Intelligence/VIP analysis instead of surfacing that the source file's column wasn't mapped. The sidebar also reports **"Live data"** vs. **"Demo environment"** so it's always clear which dataset — the packaged synthetic demo or an activated client import — is currently powering the dashboards.
 
 See `docs/CSV_IMPORT_GUIDE.md` for the canonical fields and pilot workflow. Database, S3, API, scheduled, incremental and monitored pipelines are presented as the next connector stages rather than simulated capabilities.
 

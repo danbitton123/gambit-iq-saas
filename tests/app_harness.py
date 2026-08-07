@@ -7,7 +7,7 @@ import streamlit as st
 
 from data.repository import SQLContext, get_repository
 from pages import (
-    acquisition, ai_copilot, casino, crm, finance, overview,
+    acquisition, ai_copilot, casino, crm, custom_dashboard, finance, overview,
     player_intelligence, player_profile, revenue_forecast, risk, sportsbook,
 )
 
@@ -24,6 +24,7 @@ PAGES = {
     "Acquisition": acquisition.render,
     "Revenue & Finance": finance.render,
     "Risk & Compliance": risk.render,
+    "My Dashboard": custom_dashboard.render,
 }
 
 repo = get_repository(os.getenv("GAMBIT_TEST_DB") or None)
