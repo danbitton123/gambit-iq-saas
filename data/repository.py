@@ -4,8 +4,10 @@ import json
 import os
 import sqlite3
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 import pandas as pd
 import streamlit as st
@@ -51,33 +53,51 @@ def ensure_database() -> None:
     with _BUILD_LOCK:
         if not _needs_rebuild():
             return
-        # Build into a candidate file and swap it in atomically (same pattern as the CSV
-        # importer's activation) instead of regenerating DB_PATH in place: another session
-        # querying the live file mid-rebuild would otherwise hit "no such table" between a
-        # DROP and its CREATE, surfacing as a hard error instead of a brief loading spinner.
-        candidate = DB_PATH.with_name(f"{DB_PATH.stem}.rebuild{DB_PATH.suffix}")
-        if candidate.exists():
-            candidate.unlink()
-        generate_database(candidate)
-        from ml.pipeline import train_and_score
-        train_and_score(candidate)
-        build_warehouse(candidate, include_ml=True)
-        os.replace(candidate, DB_PATH)
+        # Build into a uniquely-named candidate file and swap it in atomically (same pattern
+        # as the CSV importer's activation) instead of regenerating DB_PATH in place: another
+        # session querying the live file mid-rebuild would otherwise hit "no such table"
+        # between a DROP and its CREATE. The unique name also means two processes racing to
+        # rebuild (e.g. two replicas sharing a volume) never step on each other's candidate.
+        candidate = DB_PATH.with_name(f"{DB_PATH.stem}.rebuild.{uuid4().hex[:8]}{DB_PATH.suffix}")
+        try:
+            generate_database(candidate)
+            from ml.pipeline import train_and_score
+            train_and_score(candidate)
+            build_warehouse(candidate, include_ml=True)
+            os.replace(candidate, DB_PATH)
+        finally:
+            if candidate.exists():
+                candidate.unlink()
+
+
+_TRANSIENT_SCHEMA_ERRORS = ("no such table", "no such column", "unable to open", "locked")
 
 
 @st.cache_data(show_spinner=False, ttl=300)
 def _query_cached(sql: str, params_json: str, db_path: str, db_mtime: float) -> pd.DataFrame:
     del db_mtime
     params = json.loads(params_json)
-    try:
-        with sqlite3.connect(db_path) as conn:
-            return pd.read_sql_query(sql, conn, params=params)
-    except sqlite3.OperationalError as exc:
-        if "unable to open" in str(exc).lower() or "locked" in str(exc).lower():
-            raise DataConnectionError("Warehouse connection failed") from exc
-        raise SQLQueryError("SQL operation failed") from exc
-    except (sqlite3.Error, pd.errors.DatabaseError) as exc:
-        raise SQLQueryError("SQL query failed") from exc
+    last_exc: Exception | None = None
+    # "no such table"/"no such column" can appear as a brief, transient read against a
+    # warehouse another process is mid-rebuilding (a swap lands between this retry loop's
+    # attempts) even though the rebuild itself now swaps in atomically; a couple of short
+    # retries turn that into an invisible delay instead of a hard error surfaced to the user.
+    for attempt in range(3):
+        try:
+            with sqlite3.connect(db_path) as conn:
+                return pd.read_sql_query(sql, conn, params=params)
+        except sqlite3.OperationalError as exc:
+            last_exc = exc
+            message = str(exc).lower()
+            if any(pattern in message for pattern in _TRANSIENT_SCHEMA_ERRORS) and attempt < 2:
+                time.sleep(0.4 * (attempt + 1))
+                continue
+            if "unable to open" in message or "locked" in message:
+                raise DataConnectionError("Warehouse connection failed") from exc
+            raise SQLQueryError("SQL operation failed") from exc
+        except (sqlite3.Error, pd.errors.DatabaseError) as exc:
+            raise SQLQueryError("SQL query failed") from exc
+    raise SQLQueryError("SQL operation failed") from last_exc
 
 
 class SQLRepository:
