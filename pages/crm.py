@@ -15,7 +15,7 @@ def render(ctx)->None:
     if int(segment_rows.Players.sum()) == 0:
         empty_state("No CRM segments match these filters")
         return
-    left,middle,right=st.columns([1,1.7,1.4])
+    left,middle,right=st.columns([1,1.7,1.4],gap="medium")
     with left:
         st.markdown("#### Dynamic SQL segments")
         for row in segment_rows.itertuples(): insight(row.Segment,f"{row.Players:,} players","View segment")
@@ -24,7 +24,7 @@ def render(ctx)->None:
     with right:
         queue=next_best_action_queue.run(ctx);st.markdown("#### Next best action");data_table(queue,column_config={"predicted_ltv_90d":st.column_config.NumberColumn("Predicted remaining LTV 90D",format="$%.0f"),"model_confidence":st.column_config.ProgressColumn("Predicted confidence",min_value=0,max_value=1,format="%.1%%")})
     exp=experiment_scenario.run(ctx, m.revenue)
-    c1,c2=st.columns([2,1])
+    c1,c2=st.columns([2,1],gap="medium")
     with c1:
         fig=px.bar(exp,x="Variant",y="revenue",color="Variant",text="uplift",title="DEMO SCENARIO · NOT OBSERVED",color_discrete_sequence=["#556b7a",COLORS["cyan"],COLORS["green"]]);fig.update_traces(texttemplate="%{text:.1%}");chart(polish(fig,340,False),exp,explanation="Scenario based on explicit uplift assumptions; replace with controlled-experiment results when real campaign data is connected.")
     with c2: chart(polish(px.funnel(segment_rows,x="Players",y="Segment",title="SEGMENT SIZES"),340,False),segment_rows,explanation="Segments may overlap and therefore do not represent sequential funnel conversion.")

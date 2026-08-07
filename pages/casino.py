@@ -23,7 +23,7 @@ def render(ctx) -> None:
         empty_state("No casino activity matches these filters")
         return
     game["rtp_variance_meaning"] = game.rtp_variance.apply(lambda value: "Player-favourable · lower operator margin" if value > 0 else ("Operator-favourable · higher operator margin" if value < 0 else "In line with theoretical RTP"))
-    c1,c2=st.columns([1.7,1])
+    c1,c2=st.columns([1.7,1],gap="medium")
     with c1:
         chart(polish(px.line(daily,x="date",y="casino_ggr",color="game_name",title="GGR TREND BY GAME"),390),daily,explanation="Observed daily GGR. Use the legend to isolate a game.")
     with c2:
@@ -33,7 +33,7 @@ def render(ctx) -> None:
     data_table(game,column_config={"GGR":st.column_config.NumberColumn(format="$%.0f"),"Bets":st.column_config.NumberColumn(format="$%.0f"),"Payout":st.column_config.NumberColumn(format="$%.0f"),"theoretical_rtp":st.column_config.NumberColumn("Theoretical RTP",format="%.2%%"),"actual_rtp":st.column_config.NumberColumn("Observed actual RTP",format="%.2%%"),"rtp_variance":st.column_config.NumberColumn("Observed RTP variance · actual − theoretical",format="%+.2%%"),"rtp_variance_meaning":st.column_config.TextColumn("Variance meaning"),"ggr_per_session":st.column_config.NumberColumn("Observed GGR / session",format="$%.2f"),"ggr_margin":st.column_config.NumberColumn("Observed GGR margin",format="%.2%%")})
     heat=sessions_heatmap.run(ctx)
     matrix=heat.pivot(index="day",columns="hour",values="sessions").reindex(["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]).fillna(0)
-    left,right=st.columns([2.5,1])
+    left,right=st.columns([2.5,1],gap="medium")
     with left:
         fig=go.Figure(go.Heatmap(z=matrix.to_numpy(),x=matrix.columns,y=matrix.index,colorscale=[[0,"#0a2730"],[.5,COLORS["gold"]],[1,COLORS["red"]]]));fig.update_layout(title="SESSIONS HEATMAP · SQL GROUP BY DAY × HOUR")
         chart(polish(fig,330,False),heat,explanation="Darker red indicates more observed sessions; it does not indicate worse performance.")

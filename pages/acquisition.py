@@ -19,7 +19,7 @@ def render(ctx)->None:
     if source.empty:
         empty_state("No registrations match these filters")
         return
-    left,right=st.columns([3,1])
+    left,right=st.columns([3,1],gap="medium")
     with left:
         fig=px.scatter(source,x="Players",y="Predicted_LTV_Proxy",size="FTD_D30",color="Quality_Score",text="channel",title="SOURCE QUALITY MATRIX · SQL + ML",color_continuous_scale=[COLORS["red"],COLORS["gold"],COLORS["green"]]);fig.update_traces(textposition="top center");chart(polish(fig,390,False),source,explanation="Bubble size is observed FTD within 30 days for mature registration cohorts; color is a demo composite score using predicted proxies.")
     with right:

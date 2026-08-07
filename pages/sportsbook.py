@@ -24,7 +24,7 @@ def render(ctx)->None:
         return
     threshold=daily_mean_threshold.run(ctx)
     top=top_event.run(ctx)
-    left,right=st.columns([3.1,1])
+    left,right=st.columns([3.1,1],gap="medium")
     with left:
         fig=px.line(daily,x="date",y="Exposure",color="sport",title="DAILY HANDLE BY SPORT · SQL");fig.add_hline(y=threshold,line_dash="dash",line_color=COLORS["red"],annotation_text="Daily mean");chart(polish(fig,400),daily,explanation="Lines show settled stake volume (handle), not open exposure. The dashed line is the filtered daily mean.")
     with right:
@@ -37,7 +37,7 @@ def render(ctx)->None:
     sport=sport_performance.run(ctx)
     comp=bet_composition.run(ctx)
     events=event_liability.run(ctx)
-    c1,c2,c3=st.columns([1.1,1,1.8])
+    c1,c2,c3=st.columns([1.1,1,1.8],gap="medium")
     with c1: chart(polish(px.bar(sport,x="GGR",y="sport",orientation="h",color="Hold",title="SPORT PROFITABILITY",color_continuous_scale=[COLORS["red"],COLORS["gold"],COLORS["green"]]),330,False),sport,explanation="Red indicates lower observed hold; green indicates higher hold.")
     with c2: chart(polish(px.pie(comp,values="stake",names="Type",hole=.68,title="BETTING COMPOSITION",color_discrete_sequence=[COLORS["cyan"],COLORS["green"]]),330),comp,explanation="Share of settled handle by bet timing.")
     with c3:

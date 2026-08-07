@@ -7,7 +7,7 @@ import streamlit as st
 from config import COLORS
 from pages.overview_metrics import load
 from ui.charts import polish
-from ui.components import chart, money, pct
+from ui.components import balanced_row_sizes, chart, money, pct
 from ui.theme import page_header
 
 
@@ -25,7 +25,6 @@ def render(ctx) -> None:
 
     st.markdown("### Forward outlook")
     st.caption("Model-driven revenue forecast and the gap to the run-rate target for the next 30 days. For accountable next actions, see AI Copilot → Recommendation center.")
-    forecast_cols = st.columns(5)
     forecast_items = [
         ("Predicted GGR · 7 days", money(metrics.forecast_7), "Revenue forecast model", "positive"),
         ("Predicted GGR · 30 days", money(metrics.forecast_30), "Market-share adjusted" if ctx.country != "All markets" else "All-market model", "positive"),
@@ -33,9 +32,13 @@ def render(ctx) -> None:
         ("Predicted LTV Proxy · 90D", money(metrics.future_ltv), "Active players in scope", "neutral"),
         ("Forecast gap to target", money(metrics.forecast_gap), f"Target {money(metrics.run_rate_target_30)}", "positive" if metrics.forecast_gap >= 0 else "risk"),
     ]
-    for col, item in zip(forecast_cols, forecast_items):
-        with col:
-            _forecast_card(*item)
+    start = 0
+    for size in balanced_row_sizes(len(forecast_items), max_per_row=3):
+        row = forecast_items[start:start + size]
+        start += size
+        for col, item in zip(st.columns(len(row), gap="medium"), row):
+            with col:
+                _forecast_card(*item)
 
     daily, forecast = metrics.daily, metrics.forecast
     fig = go.Figure()

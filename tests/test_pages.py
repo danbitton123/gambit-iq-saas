@@ -113,7 +113,11 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     components = COMPONENTS.read_text(encoding="utf-8")
     assert "white-space:normal!important" in theme
     assert "text-overflow:clip!important" in theme
-    assert "columns or len(items)" in components
+    # KPI rows stay capped and balanced (e.g. 5 items as 3+2, never a lone full-width card) —
+    # regression guard for the "not too many KPIs per row" layout fix.
+    assert "balanced_row_sizes" in components
+    # The heavy "FILTERED VIEW" badge was removed from every page header.
+    assert "FILTERED VIEW" not in theme
     assert "max-width: 600px" in theme
     assert "calc(50% - .4rem)" in theme
     assert ':has([data-testid="stMetric"])' in theme

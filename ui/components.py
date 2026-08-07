@@ -9,11 +9,22 @@ import streamlit as st
 from ui.kpi_governance import kpi_help
 
 
+def balanced_row_sizes(count: int, max_per_row: int = 4) -> list[int]:
+    """Split `count` items into rows of at most `max_per_row`, sized as evenly as possible —
+    5 items become 3+2 rather than 4+1, so a row never ends with one card stretched full-width."""
+    if count <= max_per_row:
+        return [count] if count else []
+    rows = math.ceil(count / max_per_row)
+    base, extra = divmod(count, rows)
+    return [base + 1 if index < extra else base for index in range(rows)]
+
+
 def kpis(items: list[tuple[str, str, str | None]], ctx, columns: int | None = None) -> None:
-    per_row = max(1, columns or len(items))
-    for start in range(0, len(items), per_row):
-        row = items[start:start + per_row]
-        cols = st.columns(len(row))
+    start = 0
+    for size in balanced_row_sizes(len(items), max(1, columns or 4)):
+        row = items[start:start + size]
+        start += size
+        cols = st.columns(len(row), gap="medium")
         for col, (label, value, delta) in zip(cols, row):
             is_comparison = bool(delta and re.match(r"^[+\-−]?\d", str(delta)))
             col.metric(

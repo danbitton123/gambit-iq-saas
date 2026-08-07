@@ -19,7 +19,7 @@ def render(ctx)->None:
     ggr=gaming.bets-gaming.payout;bonus=max(ggr,0)*.065;tax=max(ggr,0)*.095;ngr=ggr-tx.fees-bonus-tax
     previous_ggr=previous_gaming.bets-previous_gaming.payout;previous_ngr=previous_ggr-previous_tx.fees-max(previous_ggr,0)*.065-max(previous_ggr,0)*.095
     kpis([("Estimated NGR",money(ngr),period_delta(ngr,previous_ngr)),("Observed Deposits",money(tx.deposits),period_delta(tx.deposits,previous_tx.deposits)),("Observed Withdrawals",money(tx.withdrawals),period_delta(tx.withdrawals,previous_tx.withdrawals)),("Observed Net Cash Flow",money(tx.deposits-tx.withdrawals),"Approved deposits − withdrawals"),("Observed Payment Approval Rate",pct(tx.approval,2),"Observed transaction approval")],ctx)
-    left,middle,right=st.columns([1.7,1.2,1])
+    left,middle,right=st.columns([1.7,1.2,1],gap="medium")
     with left:
         fig=go.Figure(go.Waterfall(x=["Total bets","Payouts","GGR","Estimated bonuses","Payment fees","Estimated taxes","Estimated NGR"],y=[gaming.bets,-gaming.payout,0,-bonus,-tx.fees,-tax,0],measure=["absolute","relative","total","relative","relative","relative","total"],decreasing={"marker":{"color":COLORS["red"]}},totals={"marker":{"color":COLORS["green"]}}));fig.update_layout(title="REVENUE WATERFALL ANALYSIS");chart(polish(fig,390,False),explanation="Bets, payouts and payment fees are observed. Bonuses (6.5%) and taxes (9.5%) are explicit demo estimates.")
     with middle:
@@ -28,7 +28,8 @@ def render(ctx)->None:
     methods=payment_methods.run(ctx);st.markdown("#### Payment-method performance");data_table(methods,column_config={"Volume":st.column_config.NumberColumn(format="$%.0f"),"Approved":st.column_config.ProgressColumn(min_value=0,max_value=1,format="%.1%%"),"Declined":st.column_config.ProgressColumn(min_value=0,max_value=1,format="%.1%%"),"Fees":st.column_config.NumberColumn(format="$%.0f"),"Avg_fee":st.column_config.NumberColumn("Fee rate",format="%.2%%")})
     daily=daily_ggr.run(ctx);daily.date=pd.to_datetime(daily.date)
     country=lifetime_ggr_by_country.run(ctx)
-    c1,c2,c3=st.columns(3)
-    with c1: chart(polish(px.line(daily,x="date",y="GGR",title="REVENUE TREND · SQL"),310,False),daily,explanation="Observed casino and sportsbook GGR.")
-    with c2: chart(polish(px.bar(country,x="lifetime_ggr",y="country",orientation="h",title="LIFETIME GGR CONTEXT",color_discrete_sequence=[COLORS["cyan"]]),310,False),country,explanation="Lifetime context for the selected market; not period profitability.")
-    with c3: chart(polish(go.Figure(go.Indicator(mode="gauge+number",value=float(tx.approval or 0)*100,number={"suffix":"%"},gauge={"axis":{"range":[0,100]},"bar":{"color":COLORS["green"]}},title={"text":"PAYMENT APPROVAL"})),310,False),explanation="Observed approval rate for transactions matching the global filters.")
+    # Payment approval rate already has its own KPI card above; a duplicate gauge here would
+    # just repeat that number in a second form, so this row stays two charts wide instead of three.
+    c1,c2=st.columns(2,gap="medium")
+    with c1: chart(polish(px.line(daily,x="date",y="GGR",title="REVENUE TREND · SQL"),330,False),daily,explanation="Observed casino and sportsbook GGR.")
+    with c2: chart(polish(px.bar(country,x="lifetime_ggr",y="country",orientation="h",title="LIFETIME GGR CONTEXT",color_discrete_sequence=[COLORS["cyan"]]),330,False),country,explanation="Lifetime context for the selected market; not period profitability.")
