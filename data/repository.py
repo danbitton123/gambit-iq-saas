@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 from dataclasses import dataclass
@@ -50,10 +51,18 @@ def ensure_database() -> None:
     with _BUILD_LOCK:
         if not _needs_rebuild():
             return
-        generate_database(DB_PATH)
+        # Build into a candidate file and swap it in atomically (same pattern as the CSV
+        # importer's activation) instead of regenerating DB_PATH in place: another session
+        # querying the live file mid-rebuild would otherwise hit "no such table" between a
+        # DROP and its CREATE, surfacing as a hard error instead of a brief loading spinner.
+        candidate = DB_PATH.with_name(f"{DB_PATH.stem}.rebuild{DB_PATH.suffix}")
+        if candidate.exists():
+            candidate.unlink()
+        generate_database(candidate)
         from ml.pipeline import train_and_score
-        train_and_score(DB_PATH)
-        build_warehouse(DB_PATH, include_ml=True)
+        train_and_score(candidate)
+        build_warehouse(candidate, include_ml=True)
+        os.replace(candidate, DB_PATH)
 
 
 @st.cache_data(show_spinner=False, ttl=300)
