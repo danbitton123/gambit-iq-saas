@@ -30,6 +30,11 @@ def polish(fig: go.Figure, height: int = 360, legend: bool = True) -> go.Figure:
     fig.update_yaxes(gridcolor=grid, zeroline=False, color=muted)
     fig.update_coloraxes(colorbar=dict(tickfont=dict(color=muted), title_font=dict(color=text)))
     fig.update_layout(hovermode="closest", autosize=True)
+    if fig.layout.title.text is None:
+        # Streamlit's chart accessibility caption reads the figure's own layout.title.text.
+        # Charts built from go.Indicator (gauges) only set a trace-level title, never this one,
+        # which otherwise renders as the literal text "undefined" beneath the chart.
+        fig.update_layout(title=dict(text=""))
     return fig
 
 

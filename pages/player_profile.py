@@ -126,14 +126,17 @@ def render(ctx) -> None:
         fig = px.bar(preferred, x="sessions", y="game_name", orientation="h", color="ggr", title="FAVORITE CASINO GAMES", color_continuous_scale=[COLORS["red"], COLORS["gold"], COLORS["green"]])
         chart(polish(fig, 320, False), preferred, explanation="Lifetime casino sessions ranked by game; color represents observed GGR.")
     with risk_tab:
-        gauges = st.columns(5)
-        for col, label, value in zip(gauges,
-            ["Predicted churn 7D", "Predicted churn 14D", "Predicted churn 30D", "Predicted fraud", "Predicted RG risk"],
-            [player.churn_probability_7d, player.churn_probability_14d, player.churn_probability_30d, player.fraud_risk, player.rg_risk]):
-            with col:
+        st.caption("Predicted model scores. Higher always means more risk.")
+        gauge_specs = [
+            ("Churn 7D", player.churn_probability_7d), ("Churn 14D", player.churn_probability_14d),
+            ("Churn 30D", player.churn_probability_30d), ("Fraud risk", player.fraud_risk), ("RG risk", player.rg_risk),
+        ]
+        gauges = st.columns(3)
+        for index, (label, value) in enumerate(gauge_specs):
+            with gauges[index % 3]:
                 color = COLORS["red"] if value >= .55 else COLORS["gold"] if value >= .35 else COLORS["green"]
                 fig = go.Figure(go.Indicator(mode="gauge+number", value=float(value)*100, number={"suffix": "%"}, gauge={"axis": {"range": [0, 100]}, "bar": {"color": color}, "steps": [{"range": [0,35], "color": "rgba(39,209,127,.10)"}, {"range": [35,55], "color": "rgba(245,184,75,.10)"}, {"range": [55,100], "color": "rgba(255,91,87,.10)"}]}, title={"text": label}))
-                chart(polish(fig, 260, False), explanation="Model score; higher always means more risk.")
+                chart(polish(fig, 260, False))
         rg_indicators = [
             ("RG review threshold", "Triggered" if player.rg_risk >= .55 else "Clear"),
             ("High session frequency", "Triggered" if frequency >= 20 else "Clear"),
@@ -141,9 +144,9 @@ def render(ctx) -> None:
             ("Marketing suppression", "Required" if player.rg_risk >= .55 else "Not required"),
         ]
         st.markdown("#### Responsible Gaming indicators")
-        cols = st.columns(4)
-        for col, fact in zip(cols, rg_indicators):
-            with col:
+        cols = st.columns(2)
+        for index, fact in enumerate(rg_indicators):
+            with cols[index % 2]:
                 _profile_fact(fact[0], fact[1], "Decision-support indicator")
         st.info(f"Recommended action: {player.recommended_action}. Model confidence: {pct(player.model_confidence)}. Human review is required before intervention.")
     with timeline_tab:
