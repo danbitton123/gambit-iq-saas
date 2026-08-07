@@ -22,12 +22,14 @@ PAGES = {
     "Acquisition": "nav_pages/acquisition.py",
     "Revenue & Finance": "nav_pages/finance.py",
     "Risk & Compliance": "nav_pages/risk.py",
+    "My Dashboard": "nav_pages/custom_dashboard.py",
 }
 
 
 # Player Profile (single-player fact cards) and Revenue Forecast (forecast cards) use custom
-# HTML cards rather than st.metric and intentionally have no governed KPI row.
-PAGES_WITHOUT_GOVERNED_METRICS = {"Player Profile", "Revenue Forecast"}
+# HTML cards rather than st.metric and intentionally have no governed KPI row. My Dashboard is a
+# self-serve chart builder with no governed KPI cards at all — every chart is user-defined.
+PAGES_WITHOUT_GOVERNED_METRICS = {"Player Profile", "Revenue Forecast", "My Dashboard"}
 
 
 def _widget(elements, label):
@@ -82,12 +84,13 @@ def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
     assert _widget(app.selectbox, "Market").value == "Canada"
 
     source = APP.read_text(encoding="utf-8")
-    for group in ["Executive", "Customers", "Performance", "Operations"]:
+    for group in ["Executive", "Customers", "Performance", "Operations", "Explore"]:
         assert f'"{group}"' in source
-    for icon in ["dashboard", "insights", "psychology", "person_search", "badge", "campaign", "casino", "sports_soccer", "trending_up", "account_balance", "gpp_good"]:
+    for icon in ["dashboard", "insights", "psychology", "person_search", "badge", "campaign", "casino", "sports_soccer", "trending_up", "account_balance", "gpp_good", "dashboard_customize"]:
         assert f":material/{icon}:" in source
     assert ':material/upload_file:' in source
     assert 'title="Data Import Studio"' in source
+    assert 'title="My Dashboard"' in source
     assert 'key="global_date_range"' in source
     assert 'key="global_market"' in source
     assert 'position="sidebar"' in source
@@ -170,3 +173,21 @@ def test_player_profile_shows_identity_card_tabs_and_peer_comparison():
     ]
     segment.set_value("VIP at risk").run()
     assert not app.exception
+
+
+def test_my_dashboard_builds_and_removes_a_custom_chart():
+    app = AppTest.from_file(HARNESS, default_timeout=30).run()
+    app = _widget(app.radio, "Test page").set_value("My Dashboard").run()
+    assert not app.exception
+    assert "Your dashboard is empty" in "\n".join(str(item.value) for item in app.info)
+
+    _widget(app.multiselect, "Measures (1 to 3)").set_value(["ggr"]).run()
+    app = _widget(app.button, "Add to my dashboard").set_value(True).run()
+    assert not app.exception
+    assert len(app.session_state["custom_dashboard_charts"]) == 1
+    assert len(app.get("plotly_chart")) == 1
+
+    app = _widget(app.button, "Remove").set_value(True).run()
+    assert not app.exception
+    assert app.session_state["custom_dashboard_charts"] == []
+    assert "Your dashboard is empty" in "\n".join(str(item.value) for item in app.info)

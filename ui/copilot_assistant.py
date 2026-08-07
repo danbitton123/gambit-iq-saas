@@ -24,6 +24,7 @@ PAGE_QUESTIONS = {
     "Revenue & Finance": ("Why did NGR change?", "Show me payment performance", "Explain this page"),
     "Risk & Compliance": ("Which VIP players require attention?", "How much value is at risk from churn?", "Explain this page"),
     "Data Import Studio": ("Explain this page", "Show me payment performance", "What data is missing?"),
+    "My Dashboard": ("Explain this page", "Which VIP players need attention?", "Show me casino performance"),
     "AI Copilot": ("What are the five priority actions?", "Why did NGR change?", "Which games are underperforming?"),
 }
 

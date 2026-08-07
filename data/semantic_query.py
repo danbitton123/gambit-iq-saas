@@ -176,7 +176,8 @@ class SemanticQueryEngine:
         if plan.order_metric not in plan.metrics or plan.order_direction not in ("ASC","DESC") or plan.chart_type not in ("bar","line","table"): return None
         return QueryPlan(plan.dataset,tuple(plan.dimensions[:2]),tuple(plan.metrics[:3]),plan.order_metric,plan.order_direction,max(1,min(int(plan.limit),100)),plan.chart_type)
 
-    def _compile(self, plan: QueryPlan) -> str:
+    @staticmethod
+    def _compile(plan: QueryPlan) -> str:
         ds=DATASETS[plan.dataset]; dimensions=[f"{ds.dimensions[name]} AS \"{name.replace('_',' ').title()}\"" for name in plan.dimensions]
         metrics=[f"{ds.metrics[name].expression} AS \"{name}\"" for name in plan.metrics]
         clauses=[]
@@ -192,3 +193,11 @@ class SemanticQueryEngine:
         if any(word in label for word in ("Rate","Risk","Margin","RTP","Hold","Conversion")): return f"{number:.1%}"
         if any(word in label for word in ("GGR","NGR","Deposits","Withdrawals","Volume","Fees","Wagers","Handle","Payout","LTV")): return f"${number:,.0f}"
         return f"{number:,.0f}"
+
+
+# Public entry points for anything that needs to build a QueryPlan directly (e.g. a UI-driven
+# chart builder) instead of going through natural-language parsing — same allow-listed
+# dataset/dimension/metric catalogue and the same validated, parameterized SQL compiler the
+# Copilot's semantic engine uses, so no new query-injection surface is introduced.
+validate_plan = SemanticQueryEngine._validate
+compile_plan = SemanticQueryEngine._compile

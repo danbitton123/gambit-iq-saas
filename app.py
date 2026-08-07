@@ -10,6 +10,7 @@ import streamlit as st
 
 from config import APP_NAME, APP_TAGLINE, OPERATOR
 from data.errors import DataConnectionError, SQLQueryError
+from data.importer import active_database
 from data.repository import SQLContext, get_repository
 from ui.states import (
     render_connection_error,
@@ -66,6 +67,9 @@ def main() -> None:
                 st.Page("nav_pages/risk.py", title="Risk & Compliance", icon=":material/gpp_good:", url_path="risk-compliance"),
                 st.Page("nav_pages/data_import.py", title="Data Import Studio", icon=":material/upload_file:", url_path="data-import"),
             ],
+            "Explore": [
+                st.Page("nav_pages/custom_dashboard.py", title="My Dashboard", icon=":material/dashboard_customize:", url_path="my-dashboard"),
+            ],
         },
         position="sidebar",
         expanded=True,
@@ -110,7 +114,10 @@ def main() -> None:
         unsafe_allow_html=True,
     )
     st.sidebar.markdown("<div class='live-pill'><span class='live-dot'></span> Connected</div>", unsafe_allow_html=True)
-    st.sidebar.caption("Demo environment · Synthetic data only")
+    if active_database() is not None:
+        st.sidebar.caption("Live data · Activated via Data Import Studio")
+    else:
+        st.sidebar.caption("Demo environment · Synthetic data only")
     st.sidebar.caption("Use the ◀ control above to collapse the sidebar")
 
     latest = repo.latest_event()
