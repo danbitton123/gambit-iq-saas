@@ -87,6 +87,13 @@ DATASETS: dict[str, Dataset] = {
         "ltv":Metric("Predicted LTV Proxy 90D","SUM(predicted_ltv_90d)",("ltv",)), "churn":Metric("Predicted Churn Risk","AVG(churn_probability)",("churn","attrition")),
         "fraud":Metric("Predicted Fraud Risk","AVG(fraud_risk)",("fraud",)), "rg":Metric("Predicted RG Risk","AVG(rg_risk)",("responsible gaming","rg risk")),
     }, ("player","joueur","customer","client","vip","ltv","churn","fraud","responsible gaming")),
+    # Distinct from "players": v_player_scores has no date_field, so "Observed Players" there is
+    # an all-time distinct count, not a period-scoped one. Command Center's "Observed Active
+    # Players" is COUNT(DISTINCT player_id) among players with activity inside the selected date
+    # range — this dataset reproduces that exact definition so the two never diverge.
+    "player_activity": Dataset("v_player_activity_enriched", "activity_date", {"country":"country","day":"DATE(activity_date)","week":"STRFTIME('%Y-W%W',activity_date)","month":"STRFTIME('%Y-%m',activity_date)"}, {
+        "active_players":Metric("Observed Active Players","COUNT(DISTINCT player_id)",("active player","active players","joueurs actifs")),
+    }, ("active player","active players","activity")),
 }
 
 DIMENSION_KEYWORDS = {"country":("country","countries","pays","market","marché"),"game":("game","jeu"),"provider":("provider","fournisseur"),"game_family":("family","famille","category"),"sport":("sport",),"event":("event","événement"),"channel":("channel","canal","source"),"payment_method":("payment method","méthode","method"),"transaction_type":("transaction type","type de transaction"),"status":("status","statut"),"vip_level":("vip","tier"),"device":("device","appareil"),"kyc_status":("kyc status",),"age_group":("age","âge"),"day":("daily","day","jour"),"week":("weekly","week","semaine"),"month":("monthly","month","mois")}
@@ -181,7 +188,12 @@ class SemanticQueryEngine:
         ds=DATASETS[plan.dataset]; dimensions=[f"{ds.dimensions[name]} AS \"{name.replace('_',' ').title()}\"" for name in plan.dimensions]
         metrics=[f"{ds.metrics[name].expression} AS \"{name}\"" for name in plan.metrics]
         clauses=[]
-        if ds.date_field: clauses.append(f"{ds.date_field}>=:start AND {ds.date_field}<:end")
+        # DATE(:start)/DATE(:end): :start/:end are full datetime strings, but some date_fields
+        # (e.g. mart_executive_daily.metric_date) store date-only text. Comparing a date-only
+        # column directly against a datetime string drops the boundary day — '2026-05-07' sorts
+        # before '2026-05-07 00:00:00' as plain text. DATE(...) normalizes both sides safely for
+        # datetime-valued date_fields too (matches queries/overview/performance_summary.py etc.).
+        if ds.date_field: clauses.append(f"{ds.date_field}>=DATE(:start) AND {ds.date_field}<DATE(:end)")
         if "country" in ds.dimensions: clauses.append("(:country='All markets' OR country=:country)")
         group=f" GROUP BY {','.join(str(i+1) for i in range(len(dimensions)))}" if dimensions else ""
         return f"SELECT {','.join(dimensions+metrics)} FROM {ds.table} WHERE {' AND '.join(clauses) if clauses else '1=1'}{group} ORDER BY \"{plan.order_metric}\" {plan.order_direction} LIMIT {plan.limit}"

@@ -18,6 +18,13 @@ SELECT activity_date,player_id,MAX(casino_active) casino_active,MAX(sports_activ
   UNION ALL SELECT DATE(bet_date),player_id,0,1 FROM fact_sports_bet
 ) GROUP BY activity_date,player_id;
 
+-- Row-per-player-per-active-day with country, for a governed "Active Players" semantic-catalog
+-- metric (COUNT(DISTINCT player_id) over a date range) that matches Command Center's own
+-- definition exactly — not to be confused with v_player_scores' all-time distinct player count.
+DROP VIEW IF EXISTS v_player_activity_enriched;
+CREATE VIEW v_player_activity_enriched AS
+SELECT a.activity_date,a.player_id,p.country FROM int_player_activity_daily a JOIN dim_player p USING(player_id);
+
 DROP VIEW IF EXISTS int_daily_gaming_revenue;
 CREATE VIEW int_daily_gaming_revenue AS
 SELECT calendar_date,country,SUM(casino_bets) casino_bets,SUM(casino_payouts) casino_payouts,
