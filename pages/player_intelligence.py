@@ -57,7 +57,7 @@ def render(ctx) -> None:
 
     st.markdown("### Analyze the portfolio")
     st.caption("Open a player's full profile, risk gauges and activity timeline on the Player Profile page.")
-    c1, c2 = st.columns([1, 1.3])
+    c1, c2 = st.columns([1, 1.3], gap="medium")
     with c1:
         value_by_segment = pd.DataFrame({
             "segment": SEGMENTS[1:],

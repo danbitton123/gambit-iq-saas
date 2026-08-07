@@ -15,11 +15,11 @@ def render(ctx)->None:
     if series.empty:
         empty_state("No scored player activity matches these filters")
         return
-    left,right=st.columns([3.1,1])
+    left,right=st.columns([3.1,1],gap="medium")
     with left: chart(polish(px.line(series,x="date",y="Score",color="Risk",title="RISK MONITORING · ML SCORES"),390),series,explanation="Average model scores by players' last observed session date; higher values always indicate higher risk.")
     with right: st.markdown("<p class='panel-title'>Filtered alerts</p>",unsafe_allow_html=True);insight("Fraud review queue","Active accounts above the fraud threshold.",f"{int(m.fraud or 0):,} reviews",True);insight("Player protection queue","Active accounts above the RG threshold.",f"{int(m.rg or 0):,} interventions",True)
     cases=case_queue.run(ctx);st.markdown("#### Case-management queue");data_table(cases[["player_id","trigger","severity","model_confidence","recommended_action","status"]].head(80),column_config={"model_confidence":st.column_config.ProgressColumn("Confidence",min_value=0,max_value=1,format="%.1%%")})
     actions=protection_actions.run(ctx)
-    c1,c2=st.columns([1.45,1])
+    c1,c2=st.columns([1.45,1],gap="medium")
     with c1: chart(polish(px.scatter(cases,x="fraud_risk",y="rg_risk",size="predicted_ltv_90d",color="severity",hover_name="player_id",title="PLAYER RISK CLUSTERS",color_discrete_map={"Medium":COLORS["gold"],"High":COLORS["red"],"Critical":"#c92d44"}),370),cases,explanation="Green is never used for flagged cases; amber, red and dark red indicate increasing severity.")
     with c2: chart(polish(px.bar(actions,x="Cases",y="action",orientation="h",title="PLAYER PROTECTION ACTIONS",color="Cases",color_continuous_scale=[COLORS["gold"],COLORS["red"]]),370,False),actions,explanation="Required review actions derived from filtered risk thresholds.")

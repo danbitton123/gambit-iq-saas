@@ -176,11 +176,7 @@ def apply_theme(mode: str = "Dark") -> None:
 
 
 def page_header(title: str, subtitle: str, eyebrow: str = "Intelligence Platform") -> None:
-    left, right = st.columns([8, 2])
-    with left:
-        st.markdown(
-            f"<div class='eyebrow'>{eyebrow}</div><div class='page-title'>{title}</div><div class='page-subtitle'>{subtitle}</div>",
-            unsafe_allow_html=True,
-        )
-    with right:
-        st.markdown("<div style='height:20px'></div><div class='live-pill'><span class='live-dot'></span> FILTERED VIEW</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='eyebrow'>{eyebrow}</div><div class='page-title'>{title}</div><div class='page-subtitle'>{subtitle}</div>",
+        unsafe_allow_html=True,
+    )

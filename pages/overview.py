@@ -7,7 +7,7 @@ from config import COLORS
 from data.decision_engine import DecisionEngine
 from pages.overview_metrics import load, num
 from ui.charts import polish
-from ui.components import chart, money, pct, period_delta
+from ui.components import balanced_row_sizes, chart, money, pct, period_delta
 from ui.kpi_governance import kpi_help
 from ui.theme import page_header
 
@@ -17,17 +17,21 @@ TOP_ALERTS = 6
 
 
 def _executive_kpis(items: list[dict], ctx) -> None:
-    cols = st.columns(len(items))
-    for index, item in enumerate(items):
-        with cols[index]:
-            st.metric(
-                item["label"], item["value"], item["delta"],
-                delta_color=item.get("delta_color", "normal"),
-                help=kpi_help(item["label"], ctx.period_label, ctx.last_updated_label()),
-            )
-            progress = min(max(float(item["progress"]), 0.0), 1.0)
-            st.progress(progress)
-            st.caption(f"{progress:.0%} of objective · {item['objective']}")
+    start = 0
+    for size in balanced_row_sizes(len(items), max_per_row=3):
+        row = items[start:start + size]
+        start += size
+        cols = st.columns(len(row), gap="medium")
+        for col, item in zip(cols, row):
+            with col:
+                st.metric(
+                    item["label"], item["value"], item["delta"],
+                    delta_color=item.get("delta_color", "normal"),
+                    help=kpi_help(item["label"], ctx.period_label, ctx.last_updated_label()),
+                )
+                progress = min(max(float(item["progress"]), 0.0), 1.0)
+                st.progress(progress)
+                st.caption(f"{progress:.0%} of objective · {item['objective']}")
 
 
 def _alert_card(alert) -> None:
