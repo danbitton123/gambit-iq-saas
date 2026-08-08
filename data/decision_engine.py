@@ -64,6 +64,25 @@ def _severity(magnitude: float, high: float, critical: float) -> str:
     return "Critical" if magnitude >= critical else "High" if magnitude >= high else "Medium"
 
 
+_SEVERITY_RANK = {"Critical": 0, "High": 1, "Medium": 2}
+
+
+def top_alerts(alerts: list[DecisionAlert], teams: set[str] | None = None, limit: int = 6) -> list[DecisionAlert]:
+    """One card per distinct rule (its worst-affected market), not one per market — otherwise a
+    single rule triggering in every country would crowd out every other signal when "All markets"
+    is selected. Optionally scoped to a set of team names so every page can show only the alerts
+    its own owner is responsible for, using the exact same selection Command Center uses for its
+    own cross-team top 6 — one selection rule, everywhere it's used."""
+    scoped = [alert for alert in alerts if teams is None or alert.team in teams]
+    worst_per_rule: dict[str, DecisionAlert] = {}
+    for alert in scoped:
+        current = worst_per_rule.get(alert.rule_id)
+        rank = (_SEVERITY_RANK.get(alert.severity, 3), -alert.financial_impact)
+        if current is None or rank < (_SEVERITY_RANK.get(current.severity, 3), -current.financial_impact):
+            worst_per_rule[alert.rule_id] = alert
+    return sorted(worst_per_rule.values(), key=lambda alert: (_SEVERITY_RANK.get(alert.severity, 3), -alert.financial_impact))[:limit]
+
+
 class DecisionEngine:
     """Evaluates deterministic, auditable rules against the governed SQL context."""
 

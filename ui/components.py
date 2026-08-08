@@ -6,6 +6,7 @@ import re
 import pandas as pd
 import streamlit as st
 
+from data.decision_engine import DecisionAlert, top_alerts
 from ui.kpi_governance import kpi_help
 
 
@@ -34,6 +35,36 @@ def kpis(items: list[tuple[str, str, str | None]], ctx, columns: int | None = No
                 delta_color="normal" if is_comparison else "off",
                 help=kpi_help(label, ctx.period_label, ctx.last_updated_label()),
             )
+
+
+def alert_card(alert: DecisionAlert) -> None:
+    """Compact governed-alert card — shared by Command Center's cross-team "Action required" and
+    every domain page's team-scoped alert teaser, so an alert looks identical everywhere it appears."""
+    css_severity = "critical" if alert.severity == "Critical" else "warning"
+    st.markdown(
+        f"<article class='command-alert command-alert-{css_severity}'>"
+        f"<div class='command-alert-top'><span>{alert.severity.upper()} · {alert.market}</span><strong>{alert.title}</strong></div>"
+        f"<div class='command-alert-value'>{alert.current_value}</div>"
+        f"<p>{alert.kpi} · usual {alert.usual_value}. {alert.probable_cause}</p><small>{alert.recommendation}</small></article>",
+        unsafe_allow_html=True,
+    )
+
+
+def team_alert_block(
+    alerts: list[DecisionAlert], teams: set[str], *, limit: int = 3,
+    empty_message: str = "No governed rule is currently triggered for this scope.",
+) -> None:
+    """A page's own team-scoped slice of the same governed Decision Engine alerts shown on Command
+    Center and AI Copilot — never a page-local, hand-written substitute that can silently drift out
+    of sync or, worse, never reflect real data at all."""
+    scoped = top_alerts(alerts, teams=teams, limit=limit)
+    if not scoped:
+        st.success(empty_message)
+        return
+    for col, alert in zip(st.columns(len(scoped), gap="medium"), scoped):
+        with col:
+            alert_card(alert)
+    st.caption("Open AI Copilot → Intelligent alerts for the full register with status tracking.")
 
 
 def insight(title: str, body: str, impact: str = "", risk: bool = False) -> None:

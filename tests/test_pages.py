@@ -130,7 +130,7 @@ def test_command_center_has_performance_and_action_layers():
         "Observed Total GGR", "Estimated NGR", "Observed Active Players",
         "Observed Deposits", "Observed FTD", "Observed Blended Hold",
     ]
-    assert len(app.get("plotly_chart")) == 1
+    assert len(app.get("plotly_chart")) == 2  # revenue trend + risk concentration
     html = "\n".join(str(item.value) for item in app.markdown)
     for heading in ("Performance at a glance", "Action required"):
         assert heading in html
