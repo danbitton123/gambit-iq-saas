@@ -4,15 +4,14 @@ import plotly.express as px
 import streamlit as st
 
 from config import COLORS
-from data.decision_engine import DecisionEngine
+from data.decision_engine import DecisionEngine, top_alerts
 from pages.overview_metrics import load, num
 from ui.charts import polish
-from ui.components import balanced_row_sizes, chart, money, pct, period_delta
+from ui.components import alert_card, balanced_row_sizes, chart, money, pct, period_delta
 from ui.kpi_governance import kpi_help
 from ui.theme import page_header
 
 
-SEVERITY_RANK = {"Critical": 0, "High": 1, "Medium": 2}
 TOP_ALERTS = 6
 
 
@@ -32,17 +31,6 @@ def _executive_kpis(items: list[dict], ctx) -> None:
                 progress = min(max(float(item["progress"]), 0.0), 1.0)
                 st.progress(progress)
                 st.caption(f"{progress:.0%} of objective · {item['objective']}")
-
-
-def _alert_card(alert) -> None:
-    css_severity = "critical" if alert.severity == "Critical" else "warning"
-    st.markdown(
-        f"<article class='command-alert command-alert-{css_severity}'>"
-        f"<div class='command-alert-top'><span>{alert.severity.upper()} · {alert.market}</span><strong>{alert.title}</strong></div>"
-        f"<div class='command-alert-value'>{alert.current_value}</div>"
-        f"<p>{alert.kpi} · usual {alert.usual_value}. {alert.probable_cause}</p><small>{alert.recommendation}</small></article>",
-        unsafe_allow_html=True,
-    )
 
 
 def render(ctx) -> None:
@@ -71,28 +59,27 @@ def render(ctx) -> None:
         {"label": "Observed Blended Hold", "value": pct(metrics.hold, 2), "delta": period_delta(metrics.hold, metrics.previous_hold), "progress": metrics.hold/targets["hold"], "objective": "7.0% hold"},
     ], ctx)
 
+    st.markdown("### Revenue trend")
+    fig = px.line(metrics.daily, x="date", y="ggr", title="TOTAL GGR · DAILY")
+    fig.update_traces(line_color=COLORS["cyan"], line_width=2.4)
+    chart(polish(fig, 300), metrics.daily, explanation="Observed casino and sportsbook GGR for every day in the selected period and market.")
+
     with st.spinner("Evaluating governed decision rules…"):
         alerts = DecisionEngine(ctx).evaluate()
-    # One card per distinct rule (its worst-affected market), not one per market — otherwise a
-    # single rule triggering in every country would crowd out every other signal when "All
-    # markets" is selected.
-    worst_per_rule = {}
-    for alert in alerts:
-        current_worst = worst_per_rule.get(alert.rule_id)
-        rank = (SEVERITY_RANK.get(alert.severity, 3), -alert.financial_impact)
-        if current_worst is None or rank < (SEVERITY_RANK.get(current_worst.severity, 3), -current_worst.financial_impact):
-            worst_per_rule[alert.rule_id] = alert
-    top_alerts = sorted(worst_per_rule.values(), key=lambda alert: (SEVERITY_RANK.get(alert.severity, 3), -alert.financial_impact))[:TOP_ALERTS]
+    top = top_alerts(alerts, limit=TOP_ALERTS)
 
     st.markdown("### Action required")
-    if not top_alerts:
+    if not top:
         st.success("No governed rule is currently triggered for this period and market.")
     else:
-        st.caption(f"The {len(top_alerts)} highest-severity distinct signals from the governed Decision Engine. Open AI Copilot → Intelligent alerts for the full register with status tracking.")
-        alert_cols = st.columns(3)
-        for index, alert in enumerate(top_alerts):
-            with alert_cols[index % 3]:
-                _alert_card(alert)
+        st.caption(f"The {len(top)} highest-severity distinct signals from the governed Decision Engine, across every team, ranked most severe first. Open AI Copilot → Intelligent alerts for the full register with status tracking.")
+        start = 0
+        for size in balanced_row_sizes(len(top), max_per_row=3):
+            row = top[start:start + size]
+            start += size
+            for col, alert in zip(st.columns(len(row), gap="medium"), row):
+                with col:
+                    alert_card(alert)
 
     st.markdown("### Risk concentration")
     color_map = {"Stable": COLORS["green"], "Watch": COLORS["gold"], "High risk": COLORS["red"]}

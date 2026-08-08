@@ -5,13 +5,16 @@ import plotly.express as px
 import streamlit as st
 
 from config import COLORS
+from data.decision_engine import DecisionEngine
 from queries.sportsbook import (
     bet_composition, daily_handle_by_sport, daily_mean_threshold,
     event_liability, metrics, sport_performance, top_event,
 )
 from ui.charts import polish
-from ui.components import chart, data_table, empty_state, insight,kpis,money,pct,period_delta
+from ui.components import chart, data_table, empty_state, insight,kpis,money,pct,period_delta,team_alert_block
 from ui.theme import page_header
+
+TEAM = {"Sportsbook Trading"}
 
 
 def render(ctx)->None:
@@ -28,12 +31,17 @@ def render(ctx)->None:
     with left:
         fig=px.line(daily,x="date",y="Exposure",color="sport",title="DAILY HANDLE BY SPORT · SQL");fig.add_hline(y=threshold,line_dash="dash",line_color=COLORS["red"],annotation_text="Daily mean");chart(polish(fig,400),daily,explanation="Lines show settled stake volume (handle), not open exposure. The dashed line is the filtered daily mean.")
     with right:
-        st.markdown("<p class='panel-title'>Live Risk Feed</p>",unsafe_allow_html=True);insight("Odds movement anomaly","Rapid movement detected in a football market.","HIGH",True)
+        st.markdown("<p class='panel-title'>Trading notes</p>",unsafe_allow_html=True)
         if not top.empty:
             insight("Concentrated liability",f"{top.iloc[0].event_name} holds the largest settled handle.",money(top.iloc[0].exposure),True)
         else:
             insight("Concentrated liability","No settled events in this period.","—",True)
-        insight("Sharp bettor alert","Unusual timing and stake concentration.","Manual review",True)
+
+    st.markdown("### Sportsbook Trading alerts")
+    with st.spinner("Evaluating governed decision rules…"):
+        alerts = DecisionEngine(ctx).evaluate()
+    team_alert_block(alerts, TEAM, empty_message="No exposure-concentration limit is currently breached for this scope.")
+
     sport=sport_performance.run(ctx)
     comp=bet_composition.run(ctx)
     events=event_liability.run(ctx)

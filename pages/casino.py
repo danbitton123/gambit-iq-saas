@@ -6,10 +6,13 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from config import COLORS
+from data.decision_engine import DecisionEngine
 from queries.casino import daily_ggr_by_game, game_performance, metrics, sessions_heatmap
 from ui.charts import polish
-from ui.components import chart, data_table, empty_state, insight, kpis, money, pct, period_delta
+from ui.components import chart, data_table, empty_state, insight, kpis, money, pct, period_delta, team_alert_block
 from ui.theme import page_header
+
+TEAM = {"Casino Operations"}
 
 
 def render(ctx) -> None:
@@ -41,4 +44,8 @@ def render(ctx) -> None:
         worst=game.loc[game.rtp_variance.abs().idxmax()]
         direction="players received more than theoretical; operator margin was lower" if worst.rtp_variance>0 else "players received less than theoretical; operator margin was higher"
         insight("Largest observed RTP variance",f"{worst.game_name}: {worst.rtp_variance*100:+.2f}pp (Actual − Theoretical); {direction}.","Review wager volume and sample size",True)
-        insight("High-value opportunity","Strong GGR per session detected by SQL ranking.","Review capacity")
+
+    st.markdown("### Casino Operations alerts")
+    with st.spinner("Evaluating governed decision rules…"):
+        alerts = DecisionEngine(ctx).evaluate()
+    team_alert_block(alerts, TEAM, empty_message="No RTP or provider anomaly is currently triggered for this scope.")

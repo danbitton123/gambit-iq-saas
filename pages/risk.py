@@ -2,10 +2,13 @@ from __future__ import annotations
 import plotly.express as px
 import streamlit as st
 from config import COLORS
+from data.decision_engine import DecisionEngine
 from queries.risk import case_queue, metrics, protection_actions, risk_trend
 from ui.charts import polish
-from ui.components import chart, data_table, empty_state, insight,kpis,money
+from ui.components import chart, data_table, empty_state, kpis, money, team_alert_block
 from ui.theme import page_header
+
+TEAM = {"Risk & Compliance", "Player Protection"}
 
 def render(ctx)->None:
     page_header("TRUST & RISK CENTER","Fraud, AML, KYC and player protection","Risk & Compliance")
@@ -15,9 +18,16 @@ def render(ctx)->None:
     if series.empty:
         empty_state("No scored player activity matches these filters")
         return
-    left,right=st.columns([3.1,1],gap="medium")
-    with left: chart(polish(px.line(series,x="date",y="Score",color="Risk",title="RISK MONITORING · ML SCORES"),390),series,explanation="Average model scores by players' last observed session date; higher values always indicate higher risk.")
-    with right: st.markdown("<p class='panel-title'>Filtered alerts</p>",unsafe_allow_html=True);insight("Fraud review queue","Active accounts above the fraud threshold.",f"{int(m.fraud or 0):,} reviews",True);insight("Player protection queue","Active accounts above the RG threshold.",f"{int(m.rg or 0):,} interventions",True)
+    chart(polish(px.line(series,x="date",y="Score",color="Risk",title="RISK MONITORING · ML SCORES"),330),series,explanation="Average model scores by players' last observed session date; higher values always indicate higher risk.")
+
+    st.markdown("### Risk & Compliance / Player Protection alerts")
+    with st.spinner("Evaluating governed decision rules…"):
+        alerts = DecisionEngine(ctx).evaluate()
+    # Same population as the KPI row above (queries/risk/active_condition.py's ACTIVE_CONDITION
+    # matches DecisionEngine._player_risk()'s casino+sportsbook activity predicate exactly), so
+    # this page's numbers can never quietly diverge from the same alerts on Command Center / AI Copilot.
+    team_alert_block(alerts, TEAM, empty_message="No fraud or RG case is currently above the review threshold for this scope.")
+
     cases=case_queue.run(ctx);st.markdown("#### Case-management queue");data_table(cases[["player_id","trigger","severity","model_confidence","recommended_action","status"]].head(80),column_config={"model_confidence":st.column_config.ProgressColumn("Confidence",min_value=0,max_value=1,format="%.1%%")})
     actions=protection_actions.run(ctx)
     c1,c2=st.columns([1.45,1],gap="medium")

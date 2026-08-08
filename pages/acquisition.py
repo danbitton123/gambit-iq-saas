@@ -3,14 +3,17 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from config import COLORS
+from data.decision_engine import DecisionEngine
 from queries.acquisition import ftd, ftd_conversion_d30, funnel, metrics, source_performance
 from ui.charts import polish
-from ui.components import chart, data_table, empty_state, insight,kpis,money,pct,period_delta
+from ui.components import chart, data_table, empty_state, insight,kpis,money,pct,period_delta,team_alert_block
 from ui.theme import page_header
+
+TEAM = {"Growth"}
 
 def render(ctx)->None:
     page_header("ACQUISITION INTELLIGENCE","Traffic quality, LTV and marketing profitability","Growth Analytics")
-    m=metrics.run(ctx); previous=metrics.run_previous(ctx)
+    m=metrics.run(ctx)
     ftd_now=ftd.run(ctx);previous_ftd=ftd.run_previous(ctx)
     conversion=ftd_conversion_d30.run(ctx)
     roas_value = f"{m.roas:.1f}x" if m.roas is not None and m.roas == m.roas else "—"
@@ -25,5 +28,11 @@ def render(ctx)->None:
     with right:
         best,worst=source.iloc[0],source.iloc[-1];st.markdown("<p class='panel-title'>Budget Review Priorities</p>",unsafe_allow_html=True);insight(f"Review scaling {best.channel}","Highest quality-adjusted predicted proxy in the filtered mature cohort.","Rank #1");insight(f"Review {worst.channel}","Lowest quality-adjusted predicted proxy; validate before reallocating budget.","Lowest rank",True)
     st.markdown("#### Acquisition source performance");data_table(source,column_config={"FTD_Conversion_D30":st.column_config.ProgressColumn("Observed FTD conversion D30",min_value=0,max_value=1,format="%.1%%"),"CAC":st.column_config.NumberColumn("Estimated CAC",format="$%.0f"),"Predicted_LTV_Proxy":st.column_config.NumberColumn("Predicted LTV proxy 90D",format="$%.0f"),"Predicted_ROAS_Proxy":st.column_config.NumberColumn("Predicted ROAS proxy",format="%.2fx"),"Fraud_Risk":st.column_config.ProgressColumn("Predicted fraud risk",min_value=0,max_value=1,format="%.1%%"),"Predicted_Retention_Proxy":st.column_config.ProgressColumn("Predicted retention proxy",min_value=0,max_value=1,format="%.1%%"),"Quality_Score":st.column_config.NumberColumn("Estimated quality score",format="%.1f")})
+
+    st.markdown("### Growth alerts")
+    with st.spinner("Evaluating governed decision rules…"):
+        alerts = DecisionEngine(ctx).evaluate()
+    team_alert_block(alerts, TEAM, empty_message="No unprofitable channel or conversion decline is currently triggered for this scope.")
+
     funnel_row=funnel.run(ctx)
     fig=go.Figure(go.Funnel(y=["Estimated visits","Mature registrations","KYC verified","Observed FTD D30","Estimated second deposit"],x=funnel_row.tolist(),marker={"color":[COLORS["cyan"],"#269fbd",COLORS["green"],COLORS["gold"],"#d68b28"]},textinfo="value+percent initial"));fig.update_layout(title="ACQUISITION CONVERSION FUNNEL");chart(polish(fig,350,False),explanation="Registration cohorts have a complete 30-day observation window. KYC and FTD D30 are observed; visits and second deposits remain explicit demo estimates.")
