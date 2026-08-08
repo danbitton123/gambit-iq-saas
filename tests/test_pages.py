@@ -78,12 +78,22 @@ def test_all_pages_render_for_global_and_market_filters():
     } <= governed_labels
 
     app = AppTest.from_file(HARNESS, default_timeout=30).run()
-    _widget(app.selectbox, "Market").set_value("Canada").run()
-    for page in PAGES:
-        _widget(app.radio, "Test page").set_value(page).run()
-        assert not app.exception, f"Canada / {page}: {[error.message for error in app.exception]}"
-        _assert_governed_metrics(app, page)
-        assert _widget(app.selectbox, "Market").value == "Canada"
+    markets = _widget(app.selectbox, "Market").options
+    assert len(markets) > 1  # would silently no-op the sweep below if the demo data ever loses markets
+    for market in markets:
+        if market == "All markets":
+            continue
+        app = AppTest.from_file(HARNESS, default_timeout=30).run()
+        _widget(app.selectbox, "Market").set_value(market).run()
+        for page in PAGES:
+            _widget(app.radio, "Test page").set_value(page).run()
+            # A single market's data can have shapes "All markets" never hits — e.g. a game with
+            # negative observed GGR in a narrow scope, which once crashed Casino's bubble chart
+            # (Plotly rejects negative marker sizes). Every market gets the same page sweep so a
+            # scope-specific regression like that can't hide behind a broader, averaged-out scope.
+            assert not app.exception, f"{market} / {page}: {[error.message for error in app.exception]}"
+            _assert_governed_metrics(app, page)
+            assert _widget(app.selectbox, "Market").value == market
 
 
 def test_navigation_groups_icons_and_persistent_filter_keys_are_declared():
