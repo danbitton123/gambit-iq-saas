@@ -30,8 +30,12 @@ def render(ctx) -> None:
     with c1:
         chart(polish(px.line(daily,x="date",y="casino_ggr",color="game_name",title="GGR TREND BY GAME"),390),daily,explanation="Observed daily GGR. Use the legend to isolate a game.")
     with c2:
-        fig=px.scatter(game,x="Sessions",y="ggr_margin",size="GGR",color="game_name",text="game_name",title="POPULARITY VS PROFITABILITY");fig.update_traces(textposition="top center")
-        chart(polish(fig,390,False),game,explanation="Bubble size is observed GGR; vertical position is observed GGR margin.")
+        # Bubble size must be non-negative; a game can have negative observed GGR in a narrow
+        # scope (payouts exceeded bets), so the size channel is floored at 0 (+1 so a break-even
+        # game still renders a visible dot) while the real GGR value stays in the table/scatter y-axis unclipped.
+        game["bubble_size"]=game.GGR.clip(lower=0)+1
+        fig=px.scatter(game,x="Sessions",y="ggr_margin",size="bubble_size",color="game_name",text="game_name",title="POPULARITY VS PROFITABILITY");fig.update_traces(textposition="top center")
+        chart(polish(fig,390,False),game,explanation="Bubble size is observed GGR (floored at zero); vertical position is observed GGR margin.")
     st.markdown("#### Game and table performance · SQL data mart")
     data_table(game,column_config={"GGR":st.column_config.NumberColumn(format="$%.0f"),"Bets":st.column_config.NumberColumn(format="$%.0f"),"Payout":st.column_config.NumberColumn(format="$%.0f"),"theoretical_rtp":st.column_config.NumberColumn("Theoretical RTP",format="%.2%%"),"actual_rtp":st.column_config.NumberColumn("Observed actual RTP",format="%.2%%"),"rtp_variance":st.column_config.NumberColumn("Observed RTP variance · actual − theoretical",format="%+.2%%"),"rtp_variance_meaning":st.column_config.TextColumn("Variance meaning"),"ggr_per_session":st.column_config.NumberColumn("Observed GGR / session",format="$%.2f"),"ggr_margin":st.column_config.NumberColumn("Observed GGR margin",format="%.2%%")})
     heat=sessions_heatmap.run(ctx)
